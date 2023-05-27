@@ -16,6 +16,7 @@ namespace PhisingDataCollector
         
         private Outlook.MailItem mail;
         private Outlook.MailItem mailOriginal;
+        private List<LinkData> linkList;
 
         public bool plain_Text;
         public int number_of_html_comments_tag;
@@ -27,12 +28,22 @@ namespace PhisingDataCollector
 
         public MailData(Outlook.MailItem pMail)
         {
+            LinkData ld;
+
             mail = pMail;
             mailOriginal = pMail;
+            linkList = new List<LinkData>();
 
             //Bring all the mail to uppercase to semplify the search
             mail.Body = mail.Body.ToUpper();
             mail.HTMLBody = mail.HTMLBody.ToUpper();
+
+            Regex rx = new Regex(@"<a(.*?)>(.*?)</a>");
+
+            foreach (Match link in rx.Matches(mail.HTMLBody))  {
+                ld = new LinkData(link.Value);
+                linkList.Add(ld);
+            }
 
             Valorize_plain_Text();
             Valorize_Number_of_html_comments_tag();

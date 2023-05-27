@@ -187,6 +187,7 @@
     can be found.
   -->
   <ItemGroup>
+    <Compile Include="LinkData.cs" />
     <Compile Include="MailData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
