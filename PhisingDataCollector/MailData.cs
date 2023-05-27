@@ -19,6 +19,11 @@ namespace PhisingDataCollector
 
         public bool plain_Text;
         public int number_of_html_comments_tag;
+        public int number_of_words_body;
+        public int account_count_in_body;
+        public int n_images;
+        public int count_href_tag;
+        public int table_tag_count;
 
         public MailData(Outlook.MailItem pMail)
         {
@@ -31,6 +36,11 @@ namespace PhisingDataCollector
 
             Valorize_plain_Text();
             Valorize_Number_of_html_comments_tag();
+            Valorize_Number_of_words_body();
+            Valorize_account_count_in_body();
+            Valorize_n_images();
+            Valorize_Count_href_tag();
+            Valorize_table_tag_count();
         }
 
         private void Valorize_plain_Text()
@@ -40,11 +50,39 @@ namespace PhisingDataCollector
 
         private void Valorize_Number_of_html_comments_tag()
         {
-            Regex rx = new Regex(@"<!--\b");
+            Regex rx = new Regex(@"<!--(.*?)-->");
 
             number_of_html_comments_tag = rx.Matches(mail.HTMLBody).Count;
         }
+        private void Valorize_Number_of_words_body()
+        {
+            Regex rx = new Regex(@"[\w-]+");
 
-       
+            number_of_words_body = rx.Matches(mail.HTMLBody).Count;
+        }
+        private void Valorize_account_count_in_body() {
+            Regex rx = new Regex(@"ACCOUNT");
+
+            account_count_in_body = rx.Matches(mail.Body).Count;
+        }
+        private void Valorize_n_images()
+        {
+            Regex rx = new Regex(@"<IMG([\w\W]+?)/?>");
+
+            n_images = rx.Matches(mail.Body).Count;
+        }
+
+        private void Valorize_Count_href_tag()
+        {
+            Regex rx = new Regex(@"HREF");
+
+            count_href_tag = rx.Matches(mail.Body).Count;
+        }
+        private void Valorize_table_tag_count()
+        {
+            Regex rx = new Regex(@"<TABLE");
+
+            table_tag_count = rx.Matches(mail.Body).Count;
+        }
     }
 }
