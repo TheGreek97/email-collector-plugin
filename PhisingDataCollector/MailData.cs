@@ -7,6 +7,8 @@ using Outlook = Microsoft.Office.Interop.Outlook;
 using Office = Microsoft.Office.Core;
 
 using System.Text.RegularExpressions;
+using System.IO.MemoryMappedFiles;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace PhisingDataCollector
 {
@@ -23,8 +25,11 @@ namespace PhisingDataCollector
         public int number_of_words_body;
         public int account_count_in_body;
         public int n_images;
+        public float proportion_Words_No_Vowels;
         public int count_href_tag;
         public int table_tag_count;
+        public int noLinks;
+        public float capRatio;
 
         public MailData(Outlook.MailItem pMail)
         {
@@ -50,15 +55,17 @@ namespace PhisingDataCollector
             Valorize_Number_of_words_body();
             Valorize_account_count_in_body();
             Valorize_n_images();
+            Valorize_Proportion_Words_No_Vowels();
             Valorize_Count_href_tag();
             Valorize_table_tag_count();
+            Valorize_noLinks();
+            Valorize_capRatio();
         }
 
         private void Valorize_plain_Text()
         {
             plain_Text = mail.Body == mail.HTMLBody;
         }
-
         private void Valorize_Number_of_html_comments_tag()
         {
             Regex rx = new Regex(@"<!--(.*?)-->");
@@ -82,7 +89,12 @@ namespace PhisingDataCollector
 
             n_images = rx.Matches(mail.Body).Count;
         }
+        private void Valorize_Proportion_Words_No_Vowels()
+        {
+            Regex rx = new Regex(@"\\b([^AEIOU\\s]+)\\b");
 
+            proportion_Words_No_Vowels = rx.Matches(mail.Body).Count/ number_of_words_body;
+        }
         private void Valorize_Count_href_tag()
         {
             Regex rx = new Regex(@"HREF");
@@ -95,5 +107,17 @@ namespace PhisingDataCollector
 
             table_tag_count = rx.Matches(mail.Body).Count;
         }
+        private void Valorize_noLinks()
+        {
+            noLinks = linkList.Count();
+        }
+        public void Valorize_capRatio()
+        {
+            Regex rxM = new Regex(@"[A-Z]");
+            Regex rxm = new Regex(@"[a-z]");
+
+            capRatio = rxM.Matches(mail.Body).Count/ rxm.Matches(mail.Body).Count;
+        }
+
     }
 }
