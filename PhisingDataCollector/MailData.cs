@@ -116,7 +116,14 @@ namespace PhisingDataCollector
             Regex rxM = new Regex(@"[A-Z]");
             Regex rxm = new Regex(@"[a-z]");
 
-            capRatio = rxM.Matches(mail.Body).Count/ rxm.Matches(mail.Body).Count;
+            try
+            {
+                capRatio = rxM.Matches(mailOriginal.Body).Count / rxm.Matches(mailOriginal.Body).Count;
+            }
+            catch(Exception es)
+            {
+                capRatio = 0;
+            }
         }
 
     }
