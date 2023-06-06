@@ -19,38 +19,49 @@ namespace PhishingDataCollector
         private string mailID, mailSubject, mailBody, HTMLBody, senderEmail;
 
         // Features
-        public bool plain_Text;
-        public int number_of_html_comments_tag;
 
         // Header features
-        public int num_recipients;
+        public int n_recipients;
+        public bool plain_text;
+
+        // Body
+        public int n_html_comments_tag;
 
         public MailData (string id, int size, string subject, string body, string htmlBody,
-            string sender, int n_recipients)
+            string sender, int num_recipients)
         {
+            // Set private fields (if needed)
             mailID = id;
             mailSize = size;
             mailSubject = subject;
             mailBody = body;
             HTMLBody = htmlBody;
             senderEmail = sender;
-            num_recipients = n_recipients;
 
-            Valorize_plain_Text();
+            // Compute email features
+            // -- Header features
+            n_recipients = num_recipients;
+            plain_text = mailBody == HTMLBody;
             Valorize_Number_of_html_comments_tag();
+
+            // -- Domain features
+
+            // -- Subject features
+
+            // -- Body features
+
+            // -- URL features
+
+            // -- Attachment features
+
         }
 
-
-        private void Valorize_plain_Text()
-        {
-            plain_Text = mailBody == HTMLBody;
-        }
 
         private void Valorize_Number_of_html_comments_tag()
         {
             Regex rx = new Regex(@"<!--\b");
 
-            number_of_html_comments_tag = rx.Matches(HTMLBody).Count;
+            n_html_comments_tag = rx.Matches(HTMLBody).Count;
         }
 
 
