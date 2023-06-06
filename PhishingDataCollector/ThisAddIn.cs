@@ -9,39 +9,51 @@ using Office = Microsoft.Office.Core;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.IO;
+using System.Diagnostics;
+using System.Collections.Specialized;
+using Microsoft.Office.Interop.Outlook;
 
-namespace PhisingDataCollector
+namespace PhishingDataCollector
 {
     public partial class ThisAddIn
     {
-        List<MailData> dataList = new List<MailData>();
+        List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
+        string outputFile = @"C:\Users\franc\source\repos\email-collector-plugin\PhishingDataCollector\output\test.txt";
+
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             Outlook.MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);
 
-            foreach (Outlook.MailItem item in inbox.Items)
+
+            foreach (Outlook.MailItem mail in inbox.Items)
             {
-                if (item != null)
+                if (mail != null)
                 {
-                    getMailData(item);
+                    MailData md = computeMailFeatures(in mail);
+                    mailList.Add(md);
                 }
             }
 
+            Debug.WriteLine(mailList);
+
             var options = new JsonSerializerOptions
             {
-                IncludeFields = true,
+                IncludeFields = true
             };
-            StreamWriter writer = new StreamWriter(@"C:\Users\dnlpl\Desktop\RecivedEmail1.txt");
-            string json = JsonSerializer.Serialize(dataList, options);
-            writer.WriteLine(json);
+
+            StreamWriter writer = new StreamWriter(outputFile);
+            
+            try {
+                string json = JsonSerializer.Serialize(mailList, options);
+                writer.WriteLine(json);
+            } catch (System.ArgumentException err)
+            {
+                Debug.WriteLine(mailList[0]);
+                Debug.WriteLine(err);
+            }
             writer.Close();
         }
 
-        private void getMailData(Outlook.MailItem pMail)
-        {
-            MailData md = new MailData(pMail);
-            dataList.Add(md);
-        }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
         {
@@ -60,7 +72,22 @@ namespace PhisingDataCollector
             this.Startup += new System.EventHandler(ThisAddIn_Startup);
             this.Shutdown += new System.EventHandler(ThisAddIn_Shutdown);
         }
-        
+
+        private MailData computeMailFeatures(in MailItem mail)
+        {
+            MailData md = new MailData(
+                id: mail.EntryID, 
+                size: mail.Size, 
+                subject: mail.Subject, 
+                body: mail.Body.ToUpper(),
+                htmlBody: mail.HTMLBody.ToUpper(), 
+                sender: mail.SenderEmailAddress, 
+                n_recipients: mail.Recipients.Count
+            );
+            
+            return md;
+        }
+
         #endregion
     }
 }
