@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+/*
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Office = Microsoft.Office.Core;
-
+*/
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.IO;
 using System.Diagnostics;
 using System.Collections.Specialized;
 using Microsoft.Office.Interop.Outlook;
+using System.Text.RegularExpressions;
 
 namespace PhishingDataCollector
 {
@@ -22,10 +23,10 @@ namespace PhishingDataCollector
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
-            Outlook.MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);
+            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
 
 
-            foreach (Outlook.MailItem mail in inbox.Items)
+            foreach (MailItem mail in inbox.Items)
             {
                 if (mail != null)
                 {
@@ -73,16 +74,46 @@ namespace PhishingDataCollector
             this.Shutdown += new System.EventHandler(ThisAddIn_Shutdown);
         }
 
-        private MailData computeMailFeatures(in MailItem mail)
-        {
+        private MailData computeMailFeatures(in MailItem mail) {
+            string[] mail_headers;
+            try
+            {
+                string mail_headers_string = mail.PropertyAccessor.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x007D001E"); //:subject, :sender 
+                Regex headers_re = new Regex(@"\n([^\s])");
+                List<string> headers = new List<string>();
+                string [] header_rows = headers_re.Split(mail_headers_string);
+                headers.Add(header_rows[0]);  // First one is already complete
+                for (int i=1; i< header_rows.Length-1; i+=2)
+                {
+                    // Subsequent ones are pairs to be joined together: 
+                    // header_rows[1] = "R", header_rows[2] = "eceived: xxx@outlook.com",
+                    // header_rows[3] = "F", header_rows[4] = "rom: example@mail.com"...
+                    headers.Add(header_rows[i] + header_rows[i+1]);
+                }
+                mail_headers = headers.ToArray();
+            }
+            catch (System.Runtime.InteropServices.COMException err)
+            {
+                mail_headers = new string[0];
+                Debug.WriteLine($"{err.Message}");
+            }catch (System.Exception err)
+            {
+                mail_headers = new string[0];
+                Debug.WriteLine($"{err.Message}");
+            }
+
             MailData md = new MailData(
                 id: mail.EntryID, 
                 size: mail.Size, 
                 subject: mail.Subject, 
-                body: mail.Body.ToUpper(),
-                htmlBody: mail.HTMLBody.ToUpper(), 
+                body: mail.Body.ToUpper(),  // non credo dovremmo mettere tutto in caps: abbiamo feature che si basano sul numero di
+                                            // caratteri lower/upper-case, in più non vorrei si rompesse qualche regex
+                htmlBody: mail.HTMLBody.ToUpper(), // stessa cosa qui
                 sender: mail.SenderEmailAddress, 
-                n_recipients: mail.Recipients.Count
+                num_recipients: mail.Recipients.Count,
+                headers: mail_headers,
+                attachments: mail.Attachments
+                //Add fields possibly required to compute features (e.g., attachments, headers)
             );
             
             return md;

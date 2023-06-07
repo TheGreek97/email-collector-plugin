@@ -1,0 +1,143 @@
+﻿String
+"Received: from DB9P195MB1780.EURP195.PROD.OUTLOOK.COM (2603:10a6:10:39c::9) by
+ DU2P195MB2345.EURP195.PROD.OUTLOOK.COM with HTTPS; Tue, 6 Jun 2023 06:46:42
+ +0000"
+"Received: from FR3P281CA0072.DEUP281.PROD.OUTLOOK.COM (2603:10a6:d10:4b::23)
+ by DB9P195MB1780.EURP195.PROD.OUTLOOK.COM (2603:10a6:10:39c::9) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.6455.32; Tue, 6 Jun
+ 2023 06:46:41 +0000"
+"Received: from VI1EUR02FT010.eop-EUR02.prod.protection.outlook.com
+ (2603:10a6:d10:4b:cafe::a2) by FR3P281CA0072.outlook.office365.com
+ (2603:10a6:d10:4b::23) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.6477.18 via Frontend
+ Transport; Tue, 6 Jun 2023 06:46:41 +0000"
+"Authentication-Results: spf=pass (sender IP is 143.244.86.101)
+ smtp.mailfrom=25262657m.act-it.greenpeace.org; dkim=pass (signature was
+ verified) header.d=25262657m.act-it.greenpeace.org;dmarc=pass action=none
+ header.from=act-it.greenpeace.org;compauth=pass reason=100"
+"Received-SPF: Pass (protection.outlook.com: domain of
+ 25262657m.act-it.greenpeace.org designates 143.244.86.101 as permitted
+ sender) receiver=protection.outlook.com; client-ip=143.244.86.101;
+ helo=bd77fnb.25262657m.act-it.greenpeace.org; pr=C"
+"Received: from bd77fnb.25262657m.act-it.greenpeace.org (143.244.86.101) by
+ VI1EUR02FT010.mail.protection.outlook.com (10.13.61.188) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.6477.19 via Frontend Transport; Tue, 6 Jun 2023 06:46:40 +0000"
+"X-IncomingTopHeaderMarker:
+ OriginalChecksum:E4E1B4D7CA5F04FC93E458AB9F14A3CB589599A03FE60077C7D7E8B7B49B2A6C;UpperCasedChecksum:BB6FC1F9CD10505AE642714217BC60E09458C26F4ADC57275C538890E80324CA;SizeAsReceived:2560;Count:15"
+"Received: by 172.16.178.123 with SMTP id axhgpp6gfjb4a0kfa0vxo903440wx6hnysu9he;
+        Tue, 6 Jun 2023 06:46:40 GMT"
+"DKIM-Signature: v=1; s=hs2; d=25262657m.act-it.greenpeace.org; 
+        i=@25262657m.act-it.greenpeace.org; 
+        h=sender:from:from:reply-to:to:to:cc:cc:subject:subject:list-unsubscribe:form-sub:feedback-id; 
+        a=rsa-sha256; c=relaxed/relaxed; 
+        bh=Wx4QnW0nUr5iSUXGGy79ADUCwAztRDnmN39aL9+mkB8=; 
+        b=dYQhZyht7MlIwi4wYMCRjVqZpWh8QwnAQd5MDN4AHisbaSbnRO798ix5C5HYu5
+         aJ7J9VLQGLxx2waKPm8e57JXLu81RZSjIg2WDdAdpVzf9uw+RcbPOKV61ZVboKc
+         d1Ch3Y5QjiMJH3pK0w+9mhf+1NOkuiU2aN/OsHSgmWfjbGnr50XKB8I8yHnsdHe
+         OJmF0vRlUpw6ZuHvZfrD3kqzQTb3WtTCo7v5XgmP4morZ8TkxWsfwm355z/XF6Q
+         LQhGGEJDJWEfYBWI+VxXdfN1PzAd+DuOvZcH8XfHXQW1xkj3na0PoEcdN5q+Fh0
+         PDyTi1ppPix5PlRrk9H8MMd3Ss/g==; q=dns/txt; t=1686034000; 
+        x=1686206800;"
+"DKIM-Signature: v=1; s=hs2-25262657; d=act-it.greenpeace.org; 
+        i=@act-it.greenpeace.org; 
+        h=sender:from:from:reply-to:to:to:cc:cc:subject:subject:list-unsubscribe:form-sub:feedback-id; 
+        a=rsa-sha256; c=relaxed/relaxed; 
+        bh=Wx4QnW0nUr5iSUXGGy79ADUCwAztRDnmN39aL9+mkB8=; 
+        b=qVs+LcXgAL8piMEHA/rnJmuZhd1LmT5/UJP6THyksa1gIFX49DsMy5ukJB1Vdq
+         oP+lM2c296TZYumDtjJ4mSgJ7So9RYx+XVn28vxUUDDocW34ZIJnUZTSvpDhAne
+         /ec9DPu6cI6zEDSuw1pJFInaq+TzZJVPUyKEx5jiJ+CIK+GsG+dDw1B3uqBT14X
+         VFMMgmN5FNOpNhhX+E+ETceyWM4NYYy1Fjrpc0fzxGHlhe10xsJoOUjeao8N14a
+         EEaY4s6/4VjATMB/oqI/ze/d08DQJYL3aIH2ui+zfNxPXUm3xqJiyfkwx5zNi8Z
+         rIm+I/eTnu/0pjO4vOd0Mu6h0cKQ==; q=dns/txt; t=1686034000; 
+        x=1686206800;"
+"Return-Path:
+ 1axbxoaj1iwi3awsf4ityc0go9z46i09qk3vyv-raul7fra1997=live.it@25262657m.act-it.greenpeace.org"
+"X-HS-Cid: 1axe5m65sb25ksaojqpuufrtlwzc6153gv4qzb"
+"List-Unsubscribe: <mailto:1axcz9yjifjloxue7pxp3t7m1fwrz7tj1bheaf-raul7fra1997=live.it@25262657m.act-it.greenpeace.org?subject=unsubscribe>"
+"Date: Tue, 6 Jun 2023 08:46:40 +0200"
+"From: Alessandro di Greenpeace <greenpeace.italia@act-it.greenpeace.org>"
+"Reply-To: greenpeace.italia@act-it.greenpeace.org"
+"To: raul7fra1997@live.it"
+"Message-ID: <1686033420761.0a9ae4e1-c051-4553-9b9c-ddee1ca5b6cf@25262657m.act-it.greenpeace.org>"
+"Subject: =?utf-8?Q?Il_nostro_mare_=C3=A8_?=
+ =?utf-8?Q?in_pericolo!_=E2=9A=A0=EF=B8=8F=F0=9F=8C=8A?="
+"MIME-Version: 1.0"
+"Content-Type: multipart/alternative; 
+	boundary=""----=_Part_5047024_25224281.1686034000109"""
+"X-Report-Abuse-To: abuse@hubspot.com (see
+ https://policy.hubspot.com/abuse-complaints)"
+"X-IncomingHeaderCount: 15"
+"X-MS-Exchange-Organization-ExpirationStartTime: 06 Jun 2023 06:46:41.0332
+ (UTC)"
+"X-MS-Exchange-Organization-ExpirationStartTimeReason: OriginalSubmit"
+"X-MS-Exchange-Organization-ExpirationInterval: 1:00:00:00.0000000"
+"X-MS-Exchange-Organization-ExpirationIntervalReason: OriginalSubmit"
+"X-MS-Exchange-Organization-Network-Message-Id:
+ 583e11aa-3bb3-496b-303a-08db6659c8d1"
+"X-EOPAttributedMessage: 0"
+"X-EOPTenantAttributedMessage: 84df9e7f-e9f6-40af-b435-aaaaaaaaaaaa:0"
+"X-MS-Exchange-Organization-MessageDirectionality: Incoming"
+"X-MS-PublicTrafficType: Email"
+"X-MS-TrafficTypeDiagnostic:
+ VI1EUR02FT010:EE_|DB9P195MB1780:EE_|DU2P195MB2345:EE_"
+"X-MS-Exchange-Organization-AuthSource:
+ VI1EUR02FT010.eop-EUR02.prod.protection.outlook.com"
+"X-MS-Exchange-Organization-AuthAs: Anonymous"
+"X-MS-UserLastLogonTime: 6/5/2023 11:24:05 PM"
+"X-MS-Office365-Filtering-Correlation-Id: 583e11aa-3bb3-496b-303a-08db6659c8d1"
+"X-MS-Exchange-EOPDirect: true"
+"X-Sender-IP: 143.244.86.101"
+"X-SID-PRA: GREENPEACE.ITALIA@ACT-IT.GREENPEACE.ORG"
+"X-SID-Result: PASS"
+"X-MS-Exchange-Organization-PCL: 2"
+"X-MS-Exchange-Organization-SCL: 1"
+"X-Microsoft-Antispam: BCL:2;"
+"X-MS-Exchange-CrossTenant-OriginalArrivalTime: 06 Jun 2023 06:46:40.9707
+ (UTC)"
+"X-MS-Exchange-CrossTenant-Network-Message-Id: 583e11aa-3bb3-496b-303a-08db6659c8d1"
+"X-MS-Exchange-CrossTenant-Id: 84df9e7f-e9f6-40af-b435-aaaaaaaaaaaa"
+"X-MS-Exchange-CrossTenant-AuthSource:
+ VI1EUR02FT010.eop-EUR02.prod.protection.outlook.com"
+"X-MS-Exchange-CrossTenant-AuthAs: Anonymous"
+"X-MS-Exchange-CrossTenant-FromEntityHeader: Internet"
+"X-MS-Exchange-CrossTenant-RMS-PersistedConsumerOrg:
+ 00000000-0000-0000-0000-000000000000"
+"X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB9P195MB1780"
+"X-MS-Exchange-Transport-EndToEndLatency: 00:00:01.9166143"
+"X-MS-Exchange-Processed-By-BccFoldering: 15.20.6455.026"
+"X-Message-Info:
+	qZelhIiYnPl+61N8g2Q2Q6mrlJcw6ZZ7Q94WW1d0iZyt7WBDsivdIX9aeKuyrFl9vcns1sh7s+5X30wIWbNFRhkHGJokyG0f2bBGDio2JZWuuilbtNwdXJmxVCw+Sy0h8hADlf0w7K+OD2pw0+niTPzKVQJw9P+B+0EMu0ZorTnUIYHKKokYQGC60yo5kB+6bQKGcAKHgr7/Bqb6+1iXrg=="
+"X-Message-Delivery: Vj0xLjE7dXM9MDtsPTA7YT0xO0Q9MTtHRD0xO1NDTD0z"
+"X-Microsoft-Antispam-Mailbox-Delivery:
+	abwl:0;wl:0;pcwl:0;kl:0;dwl:0;dkl:0;rwl:0;ucf:0;jmr:0;ex:0;auth:1;dest:I;ENG:(5062000305)(90000117)(90012020)(91020020)(91040095)(9050020)(9100338)(944500132)(4810010)(4910033)(8820095)(9575002)(10195002)(9320005);"
+"X-Microsoft-Antispam-Message-Info:
+	=?us-ascii?Q?JiWdUchp1xB3zBDtGlHp6+lT8hqhNCTUPuI/LhKlrw1sLV6SZJfvrN+yyRji?=
+ =?us-ascii?Q?nNYWxugBCHONJLVA5qN5CrYQKrwe2Q3c6lfOgiagSldbleig631wr8Mbbik3?=
+ =?us-ascii?Q?2nEuTj710fVpl02fuXuaiFaArsXWORa1EKEdejb1urz9zIChFLyL7Z5x3Qxp?=
+ =?us-ascii?Q?sbTzjtvCvPAWWAsJzOWHzZ6+pVpfcwDogRrPxpcn1rCVsO4tAylrRPHapfDK?=
+ =?us-ascii?Q?NVOniqD+chhnaKmVOQSSzoVA+7SPsFQb1tvKVuLtaYccPXXR09za6B45NMhv?=
+ =?us-ascii?Q?4Yy5okDZ+NyzeyLYiZtzGp/8JE65v2RAHvzII6GlmWDallE3nPyesLIhpjE4?=
+ =?us-ascii?Q?ZRRH4TrCxl9hMj9ovzSmrt+5yrbOqBXfGMQ1QxL5c5082QNSNqrQGeUJn6ZT?=
+ =?us-ascii?Q?3zd5NTxR+sqvrNdBXAH4QvdpinFlp8QwXzr2yK/L5BuhbnxEok7D5nMsvJpA?=
+ =?us-ascii?Q?l5Vd1v4gbPO0xPkJtXkOwsw2VlNDPlniYPEzlujj1QWn/UshrSsRbY0+fiFO?=
+ =?us-ascii?Q?fPMb4/NDWAEtbO/IKRBXs0dyh9e2cAVm5zvIIiPbvr18TiYNqmIr/vsPvm1q?=
+ =?us-ascii?Q?PQZK+4rqv27fg23gD4wTJMDWONzWfgekomcAFZIiOZMp0OqHsD4oRjkrD936?=
+ =?us-ascii?Q?7ohpe9uZvO7fHkqvvUsyaQQ/pejFmlQvUvFpUaWs8pyptMbTfk/iqeaFmFpt?=
+ =?us-ascii?Q?+WCIMNwxUODnnjdicLgOshFT5RnK74mvcGbdwZTp1Cmfjcy3GGw3us8lsK4k?=
+ =?us-ascii?Q?F2BesDJxbL10kBADKA5cS6JRQlj++JC+Lk3ICLxkyxDHCJ9KqxuHzbQPDx0I?=
+ =?us-ascii?Q?xhmwiS9yXN0Yp/ke62wCGscHUu0tH5ftbz0N1bNaA1WkYQWS9YruVBCAJ3c3?=
+ =?us-ascii?Q?XL5BRIuvUs4tNaBia8sPeKQ8KLwx2IyGUOlqg/5eMp+Sz0n/1mebUQtS7yim?=
+ =?us-ascii?Q?cMEKgfyX+32W/AQhsgXC54Tu9E9XBlRX+J59IZM/rIisSPSYpV6XNGe/ixP3?=
+ =?us-ascii?Q?5TrI9CKq18c7bGeKgKUWw2ZUPOGyDca6F6CuPEeFchowm7HIT91Q+lBbuca1?=
+ =?us-ascii?Q?nlaD3yf0XvVmrD0J+28qb4VGEyLXJQAJsR5XDNVSlSwDcTLAg7uo848qRPHd?=
+ =?us-ascii?Q?oWHvIipgAoyehNc9P1PV5l6RJ7Q+dZu8ml1ryZsF3k3rb39bfWmSBymnHy92?=
+ =?us-ascii?Q?JBtWt2rQZ+ydyjRJuMVbHIslSWCz1iTSyNoCdFbSH/IYIZoZUPWcSt6lRgGy?=
+ =?us-ascii?Q?EKBjSy4pULOYQNHBgJ9S1qij9204Dw2zGUDclVXYKUejkPZJGk1zlZmWAbdg?=
+ =?us-ascii?Q?gD8jVyrUhYRflwCwY8QtuN5DLr+jepSsmyZfH6TByu/AtBKJiDpNbit9XQiu?=
+ =?us-ascii?Q?FbBgMuOr+4VFmZxZvxXMhZHrdYhigk3bJ96fsertZ4WzQOWHN74Pbul76e0p?=
+ =?us-ascii?Q?K6bAhONe5/dum3ZSwpfFU0j/0qu/q4guG83e9qoqO97lZX3qZQWvIggMraa6?=
+ =?us-ascii?Q?9Rqvf+gjbBmeSgf7yAzsk070MOm1WT7pBroKDpRs7IxXwRkh/UmY8nV4Bw?=
+ =?us-ascii?Q?=3D=3D?=
+"
