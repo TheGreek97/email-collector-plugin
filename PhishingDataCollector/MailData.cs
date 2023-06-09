@@ -27,6 +27,12 @@ namespace PhishingDataCollector
         public int n_smtp_servers_blacklist;
         public string email_origin_location;
 
+        // Subject features
+        public int n_words_subject;
+        public int n_char_subject;
+        public bool is_non_ASCII_subject;
+        public sbyte is_re_fwd_subject;
+
         // Body
         public int n_html_comments_tag;
 
@@ -47,11 +53,12 @@ namespace PhishingDataCollector
             // -- Header features
             n_recipients = num_recipients;
             plain_text = mailBody == HTMLBody;
-            ComputeReceivedHeaderFeatures();
+            ComputeHeaderFeatures();
 
             // -- Domain features
 
             // -- Subject features
+            ComputeSubjectFeatures();
 
             // -- Body features
             Valorize_n_html_comments_tag();
@@ -70,7 +77,21 @@ namespace PhishingDataCollector
             n_html_comments_tag = rx.Matches(HTMLBody).Count;
         }
 
-        private void ComputeReceivedHeaderFeatures()
+        private void ComputeSubjectFeatures() 
+        {
+            n_words_subject = Regex.Split(mailSubject, @"\b\s").Length; // @"[\s[:punct:]]+").Length;
+            n_char_subject = mailSubject.Length;
+            is_non_ASCII_subject = Regex.IsMatch(mailSubject, @"[^\x00-\x7F]");
+            if (Regex.IsMatch(mailSubject, @"fwd:", RegexOptions.IgnoreCase))
+            { 
+                is_re_fwd_subject = Regex.IsMatch(mailSubject, @"re:") ? (sbyte) 3 : (sbyte) 2; // 3 = re+fwd, 2 = fwd
+            } else
+            {
+                is_re_fwd_subject = Regex.IsMatch(mailSubject, @"re:") ? (sbyte) 1 : (sbyte) 0; // 1 = re, 0 = none
+            }
+        }
+
+        private void ComputeHeaderFeatures()
         {
             n_hops = 0;
             Regex header_rx = new Regex(@"^(X-)?Received:");  //"Received" or "X-Received" headers
@@ -102,8 +123,9 @@ namespace PhishingDataCollector
                     x_originating_email_idx = i;
                 }*/
             }
-            n_smtp_servers_blacklist = 0;
+
             // Blacklist check of the traversed mailservers 
+            n_smtp_servers_blacklist = 0;
             foreach (string mail_server in servers_in_received_headers)
             {
                 // TODO API call to check the mail_server against the blacklists
@@ -138,5 +160,10 @@ namespace PhishingDataCollector
             } else {  email_origin_location = "unkwnown";  }
         }
 
+
+        public string GetID ()
+        {
+            return mailID;
+        }
     }
 }
