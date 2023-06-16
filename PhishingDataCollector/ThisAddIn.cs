@@ -13,18 +13,28 @@ using System.Diagnostics;
 using System.Collections.Specialized;
 using Microsoft.Office.Interop.Outlook;
 using System.Text.RegularExpressions;
+using Microsoft.Office.Tools.Ribbon;
 
 namespace PhishingDataCollector
 {
     public partial class ThisAddIn
     {
-        List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        string outputFile = @"C:\Users\franc\source\repos\email-collector-plugin\PhishingDataCollector\output\test.txt";
+        static List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
+        const string outputFile = @"C:\Users\franc\source\repos\email-collector-plugin\PhishingDataCollector\output\test.txt";
+
+        private LaunchRibbon taskPaneControl;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
-            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
+            taskPaneControl = Globals.Ribbons.LaunchRibbon;
+            taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
+            Debug.WriteLine("---------- Global: " + taskPaneControl.Global);
+        }
 
+
+        public static void ExecuteAddIn ()
+        {
+            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
 
             foreach (MailItem mail in inbox.Items)
             {
@@ -43,11 +53,13 @@ namespace PhishingDataCollector
             };
 
             StreamWriter writer = new StreamWriter(outputFile);
-            
-            try {
+
+            try
+            {
                 string json = JsonSerializer.Serialize(mailList, options);
                 writer.WriteLine(json);
-            } catch (System.ArgumentException err)
+            }
+            catch (System.ArgumentException err)
             {
                 Debug.WriteLine(mailList[0]);
                 Debug.WriteLine(err);
@@ -74,7 +86,7 @@ namespace PhishingDataCollector
             this.Shutdown += new System.EventHandler(ThisAddIn_Shutdown);
         }
 
-        private MailData computeMailFeatures(in MailItem mail) {
+        private static MailData computeMailFeatures(in MailItem mail) {
             string[] mail_headers;
             try
             {
