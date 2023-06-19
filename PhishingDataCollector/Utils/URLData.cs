@@ -1,16 +1,19 @@
 ﻿using DnsClient;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace PhishingDataCollector
 {
     internal class URLData
     {
-        private string URL;
-        private string host_name;
-        private string TLD;
-        private IPAddress IP;
+        private string _URL;
+        private string _TLD;
+        private IPAddress _IP;
 
+        public VirusTotalScan VTScan { get; set; }
+
+        public string HostName { get; }
         //URL features
 
 
@@ -19,21 +22,24 @@ namespace PhishingDataCollector
 
         public URLData(string uRL)
         {
-            URL = uRL;
-            host_name = uRL; // get host name (e.g., www.uniba.it)
+            uRL = Regex.Replace(uRL, @"[\\""']+", "");
+            _URL = uRL;
+            HostName = Regex.Match(uRL, @"^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?[^:\/?\n]+", RegexOptions.IgnoreCase).Groups[0].Value; // get host name (e.g., www.uniba.it)
             //...
-            TLD = uRL; // get top-level domain only
+            //_TLD = uRL; // get top-level domain only
 
-            ComputeDomainFeatures();
+            //ComputeDomainFeatures();
         }
 
         private async void ComputeDomainFeatures()
         {
-            var lookup = new LookupClient();
-            var result = await lookup.QueryAsync(host_name, QueryType.A);
+            // DNS Lookup
+            //var lookup = new LookupClient(IPAddress.Parse("8.8.8.8"));
+            var lookup = new LookupClient(new IPAddress(134744072));  // 134744072 is the representation in long of the Google DNS "8.8.8.8"
+            var result = await lookup.QueryAsync(HostName, QueryType.A);
 
             var record = result.Answers.ARecords().FirstOrDefault();
-            IP = record?.Address;
+            _IP = record?.Address;
         }
     }
 }

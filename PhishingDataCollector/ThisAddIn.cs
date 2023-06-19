@@ -1,24 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-/*
-using System.Linq;
-using System.Text;
-using System.Xml.Linq;
-using Outlook = Microsoft.Office.Interop.Outlook;
-using Office = Microsoft.Office.Core;
-*/
+﻿using System.Collections.Generic;
 using System.Text.Json;
 using System.IO;
 using System.Diagnostics;
-using System.Collections.Specialized;
 using Microsoft.Office.Interop.Outlook;
 using System.Text.RegularExpressions;
-using Microsoft.Office.Tools.Ribbon;
+using System.Net.Http;
 
 namespace PhishingDataCollector
 {
     public partial class ThisAddIn
     {
+        public static readonly HttpClient HTTPCLIENT = new HttpClient();
+
         static List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
         const string outputFile = @"C:\Users\franc\source\repos\email-collector-plugin\PhishingDataCollector\output\test.txt";
 

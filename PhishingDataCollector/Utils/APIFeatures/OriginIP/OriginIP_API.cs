@@ -34,9 +34,6 @@ namespace PhishingDataCollector
 
         public async void PerformAPICall()
         {
-            //perform API call to discover the origin (https://www.bigdatacloud.com/docs/ip-geolocation)
-            HttpClient httpClient = new HttpClient();
-
             var queryParameters = new Dictionary<string, string>()
             {
                 ["ip"] = _ip_addr_request,
@@ -44,11 +41,11 @@ namespace PhishingDataCollector
             };
             var api_url = QueryHelpers.AddQueryString(_api_request_url, queryParameters);
 
-            httpClient.DefaultRequestHeaders.Accept.Add(
+            ThisAddIn.HTTPCLIENT.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
 
             try {
-                var response = httpClient.GetAsync(api_url).Result;
+                var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result;
                 if (response.IsSuccessStatusCode)
                 {
                     string resultString = response.Content.ReadAsStringAsync().Result;

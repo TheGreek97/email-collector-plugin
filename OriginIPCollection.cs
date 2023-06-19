@@ -32,8 +32,6 @@ public class IPLocalization
     public async void PerformAPICall()
     {
         //perform API call to discover the origin (https://www.bigdatacloud.com/docs/ip-geolocation)
-        HttpClient httpClient = new HttpClient();
-
         var queryParameters = new Dictionary<string, string>()
         {
             ["ip"] = _ip_addr_request,
