@@ -256,13 +256,15 @@
     <Compile Include="LaunchRibbon.Designer.cs">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
     </Compile>
-    <Compile Include="Utils\APIFeatures.cs" />
+    <Compile Include="Utils\APIFeatures\Blacklist\BlacklistURL_API.cs" />
+    <Compile Include="Utils\APIFeatures\OriginIP\OriginIP_API.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TestMail.cs" />
+    <Compile Include="Utils\APIFeatures\Blacklist\BlacklistURLCollection.cs" />
     <Compile Include="Utils\URLData.cs" />
-    <Compile Include="Utils\OriginIPCollection.cs" />
+    <Compile Include="Utils\APIFeatures\OriginIP\OriginIPCollection.cs" />
+    <Compile Include="Utils\URLsCollection.cs" />
     <EmbeddedResource Include="LaunchRibbon.resx">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
     </EmbeddedResource>

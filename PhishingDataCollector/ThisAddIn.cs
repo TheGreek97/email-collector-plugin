@@ -28,7 +28,6 @@ namespace PhishingDataCollector
         {
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
-            Debug.WriteLine("---------- Global: " + taskPaneControl.Global);
         }
 
 

@@ -1,55 +1,53 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
-public class OriginIP
+public abstract class URLObject
 {
-    public string IP { set; get; }
-    public string origin { set; get; }
-    public OriginIP (string _ip, string _origin = "unkwnown")
+    public string Address { get; set; }
+
+    public URLObject (string server)
     {
-        if (string.IsNullOrWhiteSpace(_ip))
+        if (string.IsNullOrWhiteSpace(server))
         {
-            throw new ArgumentException(message: "IP address cannot be null or empty");
+            throw new ArgumentException(message: "The server address cannot be null or empty");
         }
-        IP = _ip;
-        origin = _origin;
+        Address = server;
     }
 }
 
-public class OriginIPCollection : ICollection<OriginIP>
-{
-    public IEnumerator<OriginIP> GetEnumerator()
+public class URLsCollection : ICollection<URLObject> {
+    public IEnumerator<URLObject> GetEnumerator()
     {
-        return new OriginIPEnumerator(this);
+        return new URLObjectEnumerator(this);
     }
     IEnumerator IEnumerable.GetEnumerator()
     {
-        return new OriginIPEnumerator(this);
+        return new URLObjectEnumerator(this);
     }
 
     // The inner collection to store objects.
-    private List<OriginIP> innerCol;
+    protected List<URLObject> innerCol;
 
-    public OriginIPCollection()
+    public URLsCollection()
     {
-        innerCol = new List<OriginIP>();
+        innerCol = new List<URLObject>();
     }
 
     // Adds an index to the collection.
-    public OriginIP this[int index]
+    public URLObject this[int index]
     {
-        get { return (OriginIP)innerCol[index]; }
+        get { return (URLObject)innerCol[index]; }
         set { innerCol[index] = value; }
     }
 
     // Determines if an item is in the collection
     // by searching for the IP address.
-    public bool Contains(OriginIP item)
+    public bool Contains(URLObject item)
     {
-        foreach (OriginIP ip_obj in innerCol)
+        foreach (URLObject obj in innerCol)
         {
-            if (ip_obj.IP == item.IP)
+            if (obj.Address == item.Address)
             {
                 return true;
             }
@@ -58,33 +56,10 @@ public class OriginIPCollection : ICollection<OriginIP>
     }
 
 
-    // Searches for the IP address in the collection and returns true if found, false otherwise
-    // If the checkVal flag is set to true, the function returns true only if
-    // the IP is found and the origin has a value different from empty
-    public bool Contains(OriginIP item, bool checkVal=false) 
-    {
-        foreach (OriginIP ip_obj in innerCol)
-        {
-            if (ip_obj.IP == item.IP)
-            {
-                if (checkVal)
-                {
-                    if (!string.IsNullOrEmpty(item.origin))
-                    {
-                        return true;
-                    }
-                } else
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     // Adds an item if it is not already in the collection
     // as determined by calling the Contains method.
-    public void Add(OriginIP item)
+    public void Add(URLObject item)
     {
 
         if (!Contains(item))
@@ -93,21 +68,20 @@ public class OriginIPCollection : ICollection<OriginIP>
         }
         else
         {
-            Console.WriteLine("The IP {0} was already added to the collection (origin = {1}).",
-                item.IP, item.origin);
+            Console.WriteLine("The server with address {0} was already added to the collection).", item.Address);
         }
     }
 
-    // Tries to find and return the OriginIP in the OriginIP collection.
+    // Tries to find and return the URL in the URLObject collection.
     // Can be used as a replacement for Contains() by checking if the result is != null 
-    public OriginIP Find(string ip)
+    public virtual URLObject Find(string address)
     {
 
-        foreach (OriginIP ip_obj in innerCol)
+        foreach (URLObject obj in innerCol)
         {
-            if (ip_obj.IP == ip)
+            if (obj.Address == address)
             {
-                return ip_obj;
+                return obj;
             }
         }
         return null;
@@ -118,7 +92,7 @@ public class OriginIPCollection : ICollection<OriginIP>
         innerCol.Clear();
     }
 
-    public void CopyTo(OriginIP[] array, int arrayIndex)
+    public void CopyTo(URLObject[] array, int arrayIndex)
     {
         if (array == null)
             throw new ArgumentNullException("The array cannot be null.");
@@ -146,7 +120,7 @@ public class OriginIPCollection : ICollection<OriginIP>
         get { return false; }
     }
 
-    public bool Remove(OriginIP item)
+    public bool Remove(URLObject item)
     {
         bool result = false;
 
@@ -155,9 +129,9 @@ public class OriginIPCollection : ICollection<OriginIP>
         for (int i = 0; i < innerCol.Count; i++)
         {
 
-            OriginIP curIP = (OriginIP)innerCol[i];
+            URLObject curObj = (URLObject)innerCol[i];
 
-            if (curIP.IP == item.IP)
+            if (curObj.Address == item.Address)
             {
                 innerCol.RemoveAt(i);
                 result = true;
@@ -168,17 +142,17 @@ public class OriginIPCollection : ICollection<OriginIP>
     }
 }
 
-public class OriginIPEnumerator : IEnumerator<OriginIP>
+public class URLObjectEnumerator : IEnumerator<URLObject>
 {
-    private OriginIPCollection _collection;
-    private int curIndex;
-    private OriginIP curIP;
+    protected URLsCollection _collection;
+    protected int curIndex;
+    protected URLObject curObj;
 
-    public OriginIPEnumerator(OriginIPCollection collection)
+    public URLObjectEnumerator(URLsCollection collection)
     {
         _collection = collection;
         curIndex = -1;
-        curIP = default(OriginIP);
+        curObj = default(URLObject);
     }
 
     public bool MoveNext()
@@ -191,7 +165,7 @@ public class OriginIPEnumerator : IEnumerator<OriginIP>
         else
         {
             // Set current box to next item in collection.
-            curIP = _collection[curIndex];
+            curObj = _collection[curIndex];
         }
         return true;
     }
@@ -200,9 +174,9 @@ public class OriginIPEnumerator : IEnumerator<OriginIP>
 
     void IDisposable.Dispose() { }
 
-    public OriginIP Current
+    public URLObject Current
     {
-        get { return curIP; }
+        get { return curObj; }
     }
 
     object IEnumerator.Current

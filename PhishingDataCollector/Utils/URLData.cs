@@ -1,10 +1,6 @@
 ﻿using DnsClient;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PhishingDataCollector
 {
@@ -24,7 +20,7 @@ namespace PhishingDataCollector
         public URLData(string uRL)
         {
             URL = uRL;
-            host_name = uRL; // get host name (e.g., www.uniba.it
+            host_name = uRL; // get host name (e.g., www.uniba.it)
             //...
             TLD = uRL; // get top-level domain only
 

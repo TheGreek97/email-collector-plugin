@@ -1,13 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Policy;
-using System.Text;
 using Newtonsoft.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
 using System.Net.Http;
@@ -16,7 +10,7 @@ using Newtonsoft.Json.Linq;
 namespace PhishingDataCollector
 {
 
-    public class IPLocalization {
+    public class OriginIP_API {
 
         private const string _api_key = "bdc_cd8f72a03c1843d59d402d7cdd1b0a6b";
         private const string _api_request_url = "https://api.bigdatacloud.net/data/country-by-ip";
@@ -26,11 +20,11 @@ namespace PhishingDataCollector
         private string region_name { get; set; }
 
 
-        public IPLocalization(string origin_ip) {
+        public OriginIP_API(string origin_ip) {
 
             if (string.IsNullOrEmpty(origin_ip))
             {
-                SetUnknown();
+                throw new ArgumentNullException("The IP address cannot be empty or null!");
             } 
             else
             {
@@ -53,32 +47,24 @@ namespace PhishingDataCollector
             httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var response = httpClient.GetAsync(api_url).Result;
-            if (response.IsSuccessStatusCode)
-            {
-                string resultString = response.Content.ReadAsStringAsync().Result;
-                try
+            try {
+                var response = httpClient.GetAsync(api_url).Result;
+                if (response.IsSuccessStatusCode)
                 {
+                    string resultString = response.Content.ReadAsStringAsync().Result;
+                
                     JObject jsonObject = (JObject) JsonConvert.DeserializeObject(resultString);
                     JObject country = (JObject)jsonObject.GetValue("country");
                     if (country != null)
                     {
                         country_name = (string)country.GetValue("name");
                         region_name = (string)((JObject)country.GetValue("wbRegion")).GetValue("value");
-                    } else
-                    {
-                        country_name = "unknown";
-                        region_name = "unknown";
-                    }
-                }
-                catch (Exception ex) // when (ex is JsonException || ex is KeyNotFoundException)
-                {
-                    Debug.WriteLine(ex);
-                }
+                    } else {  SetToUnknown();  }   
+                } else {  SetToUnknown();  }
             }
-            else
+            catch (Exception ex)
             {
-                SetUnknown();
+                Debug.WriteLine(ex);
             }
         }
 
@@ -89,7 +75,7 @@ namespace PhishingDataCollector
             else { return region_name; }
         }
 
-        private void SetUnknown()
+        private void SetToUnknown()
         {
             country_name = string.Empty;
             region_name = string.Empty;

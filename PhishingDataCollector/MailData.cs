@@ -1,17 +1,8 @@
 ﻿using Microsoft.Office.Interop.Outlook;
 using System.Text.RegularExpressions;
-using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using DnsClient;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Windows.Forms;
-using System;
-using System.Diagnostics;
 
 namespace PhishingDataCollector
 {
@@ -25,7 +16,7 @@ namespace PhishingDataCollector
         public int n_recipients;
         public bool plain_text;
         public int n_hops;
-        public int n_smtp_servers_blacklist;
+        public short n_smtp_servers_blacklist;
         public string email_origin_location;
 
         // Subject features
@@ -52,6 +43,7 @@ namespace PhishingDataCollector
         private Regex url_address_regex = new Regex (@"(http(s)?:\/\/.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)");
 
         private OriginIPCollection EmailOriginIPs = new OriginIPCollection ();
+        private BlacklistURLsCollection BlacklistedURLs = new BlacklistURLsCollection();
 
         public MailData(string id, int size, string subject, string body, string htmlBody,
             string sender, int num_recipients, string [] headers, Attachments attachments)
@@ -88,7 +80,6 @@ namespace PhishingDataCollector
 
         }
 
-
         private void Valorize_n_html_comments_tag()
         {
             Regex rx = new Regex(@"<!--\b");
@@ -116,16 +107,13 @@ namespace PhishingDataCollector
             n_hops = 0;
             Regex header_rx = new Regex(@"^(X-)?Received:");  //"Received" or "X-Received" headers
 
-            // DELETEME List<int> received_idxs = new List<int>(); // will contain the indeces of the matching headers
-            List<string> servers_in_received_headers= new List<string>(); // will contain the servers in the Received headers
-           
+            List<string> servers_in_received_headers= new List<string>(); // will contain the servers in the Received headers     
             int x_originating_ip_idx = -1; //, x_originating_email_idx=-1;
             for (int i = 0; i < _mailHeaders.Length; i++)
             {
                 if (header_rx.Match(_mailHeaders[i]).Success)
                 {
                     n_hops++;
-                    //DELETEME received_idxs.Add(i);
                     Match match_ip = ip_address_regex.Match(_mailHeaders[i]);
                     if (match_ip.Success)
                     {  //  try to match an IP address  
@@ -138,21 +126,29 @@ namespace PhishingDataCollector
                     }
                 } else if (_mailHeaders[i].StartsWith("X-Originating-IP")) {
                     x_originating_ip_idx = i;
-                }/* DELETEME else if (_mailHeaders[i].StartsWith("X-Originating-Email"))
-                {
-                    x_originating_email_idx = i;
-                }*/
+                }
             }
 
-            // Blacklist check of the traversed mailservers 
-            n_smtp_servers_blacklist = 0;
+            // n_smtp_servers_blacklist - Blacklists check of the traversed mailservers 
             foreach (string mail_server in servers_in_received_headers)
             {
-                // TODO API call to check the mail_server against the blacklists
-                // if (mail_server is in blacklist) {  n_smtp_servers_blacklist++;  }
+                // API call to check the mail_server against more than 100 blacklists
+                BlacklistURL alreadyAnalyzedURL = (BlacklistURL)BlacklistedURLs.Find(mail_server);    // Checks if the IP has already been analyzed
+                if (alreadyAnalyzedURL == null)
+                {
+                    BlacklistURL_API blacklistsResult = new BlacklistURL_API(mail_server);
+                    blacklistsResult.PerformAPICall();
+                    short n_blacklists_mailserver = blacklistsResult.GetFeature();  // the number of blacklists in which the mail server was found in
+                    BlacklistedURLs.Add(new BlacklistURL(mail_server, n_blacklists_mailserver));  // Adds the server and its result to the list of already analyzed servers
+                    if (n_blacklists_mailserver > 0) { n_smtp_servers_blacklist++; }  // If the server appears in at least 1 blacklist, we increase the feature by 1
+                }
+                else  // The mailserver has already been analyzed, so we take the available result
+                {
+                    if (alreadyAnalyzedURL.NBlacklists > 0) { n_smtp_servers_blacklist++; }
+                }
             }
 
-            // Email Origin Location
+            // email_origin_location - Email Origin Location
             string origin_server = "";
             if (x_originating_ip_idx >= 0)  // If "X-Originating-IP" has a value, use it!
             {
@@ -161,29 +157,19 @@ namespace PhishingDataCollector
                 Match origin_match = origin_rx.Match(header_to_consider);
                 if (origin_match.Success) {  origin_server = origin_match.Groups[1].Value;  }          
             }
-            /* DELETEME else if (x_originating_email_idx >= 0)  //Otherwise, try to use the Originating email
-            {
-                string header_to_consider = _mailHeaders[x_originating_email_idx];
-                Regex origin_rx = new Regex(@"(?<=@)[^\]]*");  // Gets the orginating IP address
-
-            }*/
             else if (servers_in_received_headers.Count > 0)  // Else, try to use the last "Received" header
             {
-                //DELETEME string header_to_consider = _mailHeaders[received_idxs.Last()];  // The origin of the email is found in the last Received header
                 origin_server = servers_in_received_headers.Last();
             }
-
-            // Email Origin
-            OriginIP alreadyAnalyzedIP = EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
-            if ( alreadyAnalyzedIP == null) { 
-                IPLocalization originResult = new IPLocalization(origin_server);
+            OriginIP alreadyAnalyzedIP = (OriginIP)EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
+            if ( alreadyAnalyzedIP == null) {
+                OriginIP_API originResult = new OriginIP_API(origin_server);
                 originResult.PerformAPICall();
                 email_origin_location = originResult.GetFeature();
                 EmailOriginIPs.Add(new OriginIP(origin_server, email_origin_location));  // Adds the IP and its result to the list of already analyzed IPs
             } else {
-                email_origin_location = alreadyAnalyzedIP.origin;  // If the IP has already been analyzed, take the available result
+                email_origin_location = alreadyAnalyzedIP.Origin;  // If the IP has already been analyzed, take the available result
             }
         }
-
     }
 }
