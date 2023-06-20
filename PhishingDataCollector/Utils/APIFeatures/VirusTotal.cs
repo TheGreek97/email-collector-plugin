@@ -5,7 +5,6 @@ using Newtonsoft.Json.Linq;
 using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Security.Cryptography;
 
 public class VirusTotalScan : URLObject
 {
@@ -37,6 +36,7 @@ public class VirusTotalScan : URLObject
     {
         var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(Address);
         Base64Address = System.Convert.ToBase64String(plainTextBytes);
+        Base64Address = Regex.Replace(Base64Address, @"=+$", "");  // remove trailing padding chars '='
     }
 }
 
@@ -74,12 +74,11 @@ public static class VirusTotal_API {
             if (vt.IsIPAddress) {
                 requestURL = _api_request_url + "ip_addresses/"+vt.Address;
             } else {
-                requestURL = _api_request_url + "urls/" + vt.Base64Address; // TODO potremmo usare l'endpoint "/urls/votes" (molto più light)
+                requestURL = _api_request_url + "urls/" + vt.Base64Address;
             }
         }
         httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
         httpRequest.Headers.Add("x-apikey", _api_key);
-        // FIXME : La risorsa (URL) non è cercata correttamente
         try
         {
             HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse();
@@ -89,7 +88,7 @@ public static class VirusTotal_API {
                 StreamReader reader = new StreamReader(resultStream);
                 string resultString = reader.ReadToEnd();
                 // Response structure: https://developers.virustotal.com/reference/url-object
-                JObject jsonObject = (JObject)JsonConvert.DeserializeObject(resultString);
+                JObject jsonObject = (JObject) ((JObject) ((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("data")).GetValue("attributes");
                 JObject scanners_results = (JObject) jsonObject.GetValue("last_analysis_results");
                 JObject total_votes = (JObject) jsonObject.GetValue("total_votes");
                 if (total_votes != null)
