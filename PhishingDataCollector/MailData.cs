@@ -30,6 +30,12 @@ namespace PhishingDataCollector
 
         // Body
         public int n_html_comments_tag;
+        public int n_words_body;
+        public int n_images;
+        public float proportion_words_no_vowels;
+        public int n_href_tag;
+        public int n_account_in_body;
+        public int n_table_tag;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -79,7 +85,7 @@ namespace PhishingDataCollector
             ComputeSubjectFeatures();
 
             // -- Body features
-            Valorize_n_html_comments_tag();
+            ComputeBodyFeatures();
 
             List<string> links = new List<string> ();
             URLData most_dangerous_link = null;
@@ -178,11 +184,30 @@ namespace PhishingDataCollector
 
         }
 
-        private void Valorize_n_html_comments_tag()
+        private void ComputeBodyFeatures()
         {
-            Regex rx = new Regex(@"<!--\b");
-
+            Regex rx;
+            //Feature n_html_comments_tag
+            rx = new Regex(@"<!--\b");
             n_html_comments_tag = rx.Matches(_HTMLBody).Count;
+            //Feature n_words_body
+            rx = new Regex(@"(\w+)");
+            n_words_body = rx.Matches(_mailBody).Count;
+            //Feature n_images
+            rx = new Regex(@"<img");
+            n_images = rx.Matches(_HTMLBody).Count;
+            //Feature proportion_words_no_vowels
+            rx = new Regex(@"\b([^aeiou\s]+)\b");
+            proportion_words_no_vowels = rx.Matches(_mailBody).Count / n_words_body;
+            //Feature n_href_tag
+            rx = new Regex(@"href");
+            n_href_tag = rx.Matches(_HTMLBody).Count;
+            //Feature n_account_in_body
+            rx = new Regex(@"account|Account|ACCOUNT");
+            n_account_in_body = rx.Matches(_mailBody).Count;
+            //Feature n_table_tag
+            rx = new Regex(@"<table");
+            n_table_tag = rx.Matches(_HTMLBody).Count;
         }
 
         private void ComputeSubjectFeatures() 
