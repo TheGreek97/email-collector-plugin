@@ -61,7 +61,7 @@ public class VirusTotalScansCollection : URLsCollection
 
 public static class VirusTotal_API {
 
-    private const string _api_key = "02c720cb6e04487edb6384c18bb663da3667ca6e8f79925682d82e700f5ddae9";
+    private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__VIRUS_TOTAL");
     private const string _api_request_url = "https://www.virustotal.com/api/v3/";
 
     public static void PerformAPICall(VirusTotalScan vt)

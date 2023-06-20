@@ -6,6 +6,7 @@ using Microsoft.Office.Interop.Outlook;
 using System.Text.RegularExpressions;
 using System.Net.Http;
 using System.Windows.Forms;
+using System;
 
 namespace PhishingDataCollector
 {
@@ -14,12 +15,18 @@ namespace PhishingDataCollector
         public static readonly HttpClient HTTPCLIENT = new HttpClient();
 
         static List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        const string outputFile = @"C:\Users\dnlpl\Desktop\test.txt";
+        static string outputFile = @"output\test.txt";
 
         private LaunchRibbon taskPaneControl;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
+            string workingDir= Directory.GetCurrentDirectory();
+            string rootDir = Directory.GetParent(workingDir).Parent.Parent.FullName;
+            var dotenv = Path.Combine(rootDir, ".env");
+            DotEnv.Load(dotenv);
+            outputFile = Environment.GetEnvironmentVariable("DEBUG_OUTPUT_FILE");
+            //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
         }

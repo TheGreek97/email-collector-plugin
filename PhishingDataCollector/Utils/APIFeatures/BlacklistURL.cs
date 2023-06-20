@@ -47,7 +47,7 @@ public class BlacklistURLsCollection : URLsCollection
 
 public static class BlacklistURL_API {
 
-    private const string _api_key = "key_LS3loGrqCWUvKHRaCJgd9LiSR";
+    private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__BLACKLIST_CHECKER");
     private const string _api_request_url = "https://api.blacklistchecker.com/";
 
 

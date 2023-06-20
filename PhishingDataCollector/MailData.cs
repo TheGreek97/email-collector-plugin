@@ -3,13 +3,9 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
-using System.IO;
-using System.Security.Policy;
-using System.Windows.Forms;
 
 namespace PhishingDataCollector
 {
-
     internal class MailData
     {
         public string ID => _mailID;
@@ -36,6 +32,9 @@ namespace PhishingDataCollector
         public int n_href_tag;
         public int n_account_in_body;
         public int n_table_tag;
+        public float automated_readability_index;
+
+        public bool binary_URL_bag_of_words;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -43,21 +42,24 @@ namespace PhishingDataCollector
         public short vt_l_clean;
         public short vt_l_unknown;
 
+        // URL
+        public URLData MailURL;
 
-        public URLData[] urls_in_mail;  // contains the features for each url in the email
-        // public AttachmentsData[] attachments_in_mail;  // the same shall be done for attachments
+        // public AttachmentsData attachmentFeatures;  
         private readonly int _mailSize;
-        private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender;
+        private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
         private readonly Attachments _mailAttachments;
         
         // Utility regexes
-        private Regex ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
-        private Regex url_address_regex = new Regex (@"(http(s)?:\/\/.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)");
+        private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
+        private Regex _url_address_regex = new Regex (@"(https?:\/\/|www\.)[-a-zA-Z0-9@:%._\-\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_+.~#?&\/=\-]*", RegexOptions.IgnoreCase);
 
+        // Collections of already processed urls using APIs
         private OriginIPCollection EmailOriginIPs = new OriginIPCollection ();
         private BlacklistURLsCollection BlacklistedURLs = new BlacklistURLsCollection();
         private VirusTotalScansCollection VirusTotalScans = new VirusTotalScansCollection();
+
 
         public MailData(string id, int size, string subject, string body, string htmlBody,
             string sender, int num_recipients, string [] headers, Attachments attachments)
@@ -69,17 +71,18 @@ namespace PhishingDataCollector
             _mailSubject = subject;
             _mailBody = body;
             _HTMLBody = htmlBody;
+            _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
             _emailSender = sender;
             _mailAttachments = attachments;
 
-            // Compute email features
+            // Compute the email features
             // -- Header features
             n_recipients = num_recipients;
             plain_text = _mailBody == _HTMLBody;
-            // Disabled for testing - ComputeHeaderFeatures();
-
-            // -- Domain features
-
+            /* 
+             * Disabled for testing 
+             * ComputeHeaderFeatures();
+            */
 
             // -- Subject features
             ComputeSubjectFeatures();
@@ -87,12 +90,11 @@ namespace PhishingDataCollector
             // -- Body features
             ComputeBodyFeatures();
 
+            // ---- Body features that involve links
             List<string> links = new List<string> ();
-            URLData most_dangerous_link = null;
-
             if (plain_text)  // If the email is not in HTML
             {
-                MatchCollection linksMatch = Regex.Matches(_mailBody, @"(https?:\/\/|www\.)[-a-zA-Z0-9@:%._\-\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_+.~#?&\/=\-]*", RegexOptions.IgnoreCase);
+                MatchCollection linksMatch = _url_address_regex.Matches(_mailBody);
                 foreach (Match lMatch in linksMatch)
                 {
                     string link = lMatch.Value;
@@ -110,7 +112,7 @@ namespace PhishingDataCollector
                     links.Add(link);
                 }
             }
-
+           
             List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
             foreach (string link in links)
             {
@@ -119,7 +121,10 @@ namespace PhishingDataCollector
                 if (alreadyAnalyzed == null)
                 {
                     VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
-                    VirusTotal_API.PerformAPICall(link_scan);
+                    /*
+                     * Disabled for testing 
+                     * VirusTotal_API.PerformAPICall(link_scan);
+                    */
                     VirusTotalScans.Add(link_scan);
                     url.VTScan = link_scan;
                 } else
@@ -127,6 +132,10 @@ namespace PhishingDataCollector
                     url.VTScan = alreadyAnalyzed;
                 }
                 urls_in_mail.Add(url);
+                if (! binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
+                {
+                    binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
+                }
             }
             // Compute the body features that include VirusTotal
             vt_l_maximum = 0;
@@ -134,25 +143,25 @@ namespace PhishingDataCollector
             vt_l_clean = 0;
             vt_l_unknown = 0;
             URLData secondCandidate = null;
-            foreach (URLData url in urls_in_mail)
+            foreach (URLData _u in urls_in_mail)
             {
-                if (url.VTScan.IsUnkown)
+                if (_u.VTScan.IsUnkown)
                 {
                     vt_l_unknown++;
-                    secondCandidate = url;
+                    secondCandidate = _u;
                 } else
                 {
-                    if (url.VTScan.NMalicious == 0)
+                    if (_u.VTScan.NMalicious == 0)
                     {
                         vt_l_clean++;
                     } 
-                    else if (url.VTScan.NMalicious > 0)
+                    else if (_u.VTScan.NMalicious > 0)
                     {
                         vt_l_positives++;
-                        if (vt_l_maximum < url.VTScan.NMalicious)
+                        if (vt_l_maximum < _u.VTScan.NMalicious)
                         {
-                            vt_l_maximum = url.VTScan.NMalicious;
-                            most_dangerous_link = url;
+                            vt_l_maximum = _u.VTScan.NMalicious;
+                            MailURL = _u;
                         }
                     }
                 }
@@ -160,18 +169,20 @@ namespace PhishingDataCollector
             vt_l_rate = vt_l_positives / urls_in_mail.Count;
             
             // Based on these 5 features, we take the most dangerous URL and compute the URL feature on that URL
-            if (most_dangerous_link == null)
+            if (MailURL == null)
             {
                 if (secondCandidate == null)
                 {
-                    most_dangerous_link = urls_in_mail[0];  // We could as well take one at random 
+                    MailURL = urls_in_mail[0];  // We could as well take one at random 
                 } else
                 {
-                    most_dangerous_link = secondCandidate;
+                    MailURL = secondCandidate;
                 }
             }
             // -- URL features 
-            // Use most_dangerous_link
+            MailURL.ComputeURLFeatures();
+            // ---- URL Domain features
+            MailURL.ComputeDomainFeatures();
 
             // -- Attachment features
             foreach (Attachment att in attachments)
@@ -188,26 +199,28 @@ namespace PhishingDataCollector
         {
             Regex rx;
             //Feature n_html_comments_tag
-            rx = new Regex(@"<!--\b");
-            n_html_comments_tag = rx.Matches(_HTMLBody).Count;
+            rx = new Regex(@"<!--\b");  // Si può semplificare :), ad esempio:
+            n_html_comments_tag = rx.Matches(_HTMLBody).Count; // = Regex.Matches(_HTMLBody, @"<!--\b").Count;
             //Feature n_words_body
             rx = new Regex(@"(\w+)");
-            n_words_body = rx.Matches(_mailBody).Count;
+            n_words_body = rx.Matches(_mailBody).Count;  // dovremmo considerare il body senza HTML, ovvero _plainTextBody (che è diverso da _mailBody)
             //Feature n_images
-            rx = new Regex(@"<img");
+            rx = new Regex(@"<img", RegexOptions.IgnoreCase);
             n_images = rx.Matches(_HTMLBody).Count;
             //Feature proportion_words_no_vowels
-            rx = new Regex(@"\b([^aeiou\s]+)\b");
+            rx = new Regex(@"\b([^aeiou\s]+)\b", RegexOptions.IgnoreCase);
             proportion_words_no_vowels = rx.Matches(_mailBody).Count / n_words_body;
             //Feature n_href_tag
-            rx = new Regex(@"href");
+            rx = new Regex(@"href\s*=", RegexOptions.IgnoreCase);
             n_href_tag = rx.Matches(_HTMLBody).Count;
             //Feature n_account_in_body
-            rx = new Regex(@"account|Account|ACCOUNT");
+            rx = new Regex(@"account", RegexOptions.IgnoreCase);
             n_account_in_body = rx.Matches(_mailBody).Count;
             //Feature n_table_tag
-            rx = new Regex(@"<table");
+            rx = new Regex(@"<table", RegexOptions.IgnoreCase);
             n_table_tag = rx.Matches(_HTMLBody).Count;
+            //Feature automated_readability_index
+            automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, "it");
         }
 
         private void ComputeSubjectFeatures() 
@@ -237,14 +250,14 @@ namespace PhishingDataCollector
                 if (header_rx.Match(_mailHeaders[i]).Success)
                 {
                     n_hops++;
-                    Match match_ip = ip_address_regex.Match(_mailHeaders[i]);
+                    Match match_ip = _ip_address_regex.Match(_mailHeaders[i]);
                     if (match_ip.Success)
                     {  //  try to match an IP address  
                         servers_in_received_headers.Add(match_ip.Value);
                     }
                     else
                     {  //  try to match a domain URL
-                        Match match_url = url_address_regex.Match(_mailHeaders[i]);
+                        Match match_url = _url_address_regex.Match(_mailHeaders[i]);
                         if (match_url.Success) { servers_in_received_headers.Add(match_url.Value); }
                     }
                 } else if (_mailHeaders[i].StartsWith("X-Originating-IP")) {
@@ -285,12 +298,12 @@ namespace PhishingDataCollector
             }
             OriginIP alreadyAnalyzedIP = (OriginIP)EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
             if ( alreadyAnalyzedIP == null) {
-                OriginIP_API originResult = new OriginIP_API(origin_server);
-                originResult.PerformAPICall();
+                OriginIP originResult = new OriginIP(origin_server);
+                OriginIP_API.PerformAPICall(originResult);
+                EmailOriginIPs.Add(originResult);  // Adds the IP and its result to the list of already analyzed IPs
                 email_origin_location = originResult.GetFeature();
-                EmailOriginIPs.Add(new OriginIP(origin_server, email_origin_location));  // Adds the IP and its result to the list of already analyzed IPs
             } else {
-                email_origin_location = alreadyAnalyzedIP.Origin;  // If the IP has already been analyzed, take the available result
+                email_origin_location = alreadyAnalyzedIP.GetFeature();  // If the IP has already been analyzed, take the available result
             }
         }
     }

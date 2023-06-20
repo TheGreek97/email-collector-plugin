@@ -250,6 +250,8 @@
     <Compile Include="..\PhishingDataCollector\MailData.cs">
       <Link>MailData.cs</Link>
     </Compile>
+    <Compile Include="BodyFeatures.cs" />
+    <Compile Include="DotEnv.cs" />
     <Compile Include="LaunchRibbon.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -258,14 +260,14 @@
     </Compile>
     <Compile Include="MailData.cs" />
     <Compile Include="Utils\APIFeatures\BlacklistURL.cs" />
-    <Compile Include="Utils\APIFeatures\OriginIP\OriginIP_API.cs" />
+    <Compile Include="Utils\APIFeatures\OriginIP.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Utils\APIFeatures\VirusTotal.cs" />
     <Compile Include="Utils\HttpUploadFile.cs" />
-    <Compile Include="Utils\URLData.cs" />
-    <Compile Include="Utils\APIFeatures\OriginIP\OriginIPCollection.cs" />
+    <Compile Include="URLData.cs" />
+    <Compile Include="Utils\Syllabify.cs" />
     <Compile Include="Utils\URLsCollection.cs" />
     <EmbeddedResource Include="LaunchRibbon.resx">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
@@ -280,6 +282,8 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include=".env" />
+    <None Include=".env.example" />
     <None Include="app.config" />
     <None Include="output\headers_example.csv" />
     <None Include="packages.config" />
@@ -325,7 +329,7 @@
     </ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>0E4CDB206E3C8E75E2DDD369C6F9F9AB3EA5B48F</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>0603A793EB76FEBFFCB18CC4E2232B52F15A6DFC</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
