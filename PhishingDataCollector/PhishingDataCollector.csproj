@@ -256,6 +256,7 @@
     <Compile Include="LaunchRibbon.Designer.cs">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
     </Compile>
+    <Compile Include="MailData.cs" />
     <Compile Include="Utils\APIFeatures\BlacklistURL.cs" />
     <Compile Include="Utils\APIFeatures\OriginIP\OriginIP_API.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -283,6 +284,7 @@
     <None Include="output\headers_example.csv" />
     <None Include="packages.config" />
     <None Include="PhishingDataCollector.pfx" />
+    <None Include="PhishingDataCollector_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -323,7 +325,7 @@
     </ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>68056C196122F00E8726AA71BFEBD93B4A094537</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>0E4CDB206E3C8E75E2DDD369C6F9F9AB3EA5B48F</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

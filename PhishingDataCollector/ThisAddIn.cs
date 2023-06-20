@@ -5,6 +5,7 @@ using System.Diagnostics;
 using Microsoft.Office.Interop.Outlook;
 using System.Text.RegularExpressions;
 using System.Net.Http;
+using System.Windows.Forms;
 
 namespace PhishingDataCollector
 {
@@ -13,7 +14,7 @@ namespace PhishingDataCollector
         public static readonly HttpClient HTTPCLIENT = new HttpClient();
 
         static List<MailData> mailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        const string outputFile = @"C:\Users\franc\source\repos\email-collector-plugin\PhishingDataCollector\output\test.txt";
+        const string outputFile = @"C:\Users\dnlpl\Desktop\test.txt";
 
         private LaunchRibbon taskPaneControl;
 
@@ -57,6 +58,8 @@ namespace PhishingDataCollector
                 Debug.WriteLine(err);
             }
             writer.Close();
+
+            MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Data Collector");
         }
 
 
