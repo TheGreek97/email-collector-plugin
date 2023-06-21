@@ -22,7 +22,7 @@ namespace PhishingDataCollector
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             string workingDir= Directory.GetCurrentDirectory();
-            string rootDir = Directory.GetParent(workingDir).Parent.Parent.FullName;
+            string rootDir = Directory.GetParent(workingDir).Parent.FullName;
             var dotenv = Path.Combine(rootDir, ".env");
             DotEnv.Load(dotenv);
             outputFile = Environment.GetEnvironmentVariable("DEBUG_OUTPUT_FILE");

@@ -91,105 +91,22 @@ namespace PhishingDataCollector
             ComputeBodyFeatures();
 
             // ---- Body features that involve links
-            List<string> links = new List<string> ();
-            if (plain_text)  // If the email is not in HTML
-            {
-                MatchCollection linksMatch = _url_address_regex.Matches(_mailBody);
-                foreach (Match lMatch in linksMatch)
-                {
-                    string link = lMatch.Value;
-                    links.Add(link);
-                }
-            }
-            else
-            {
-                MatchCollection _anchors = Regex.Matches(_HTMLBody, @"<a [^>]*href\s*=\s*(\'[^\']*\'|""[^""]*"").*>[^<]*<\s*\/a\s*>", RegexOptions.IgnoreCase);
-                foreach (Match anchorLink in _anchors)
-                {
-                    string link = anchorLink.Groups[1].Value;  // the quoted URL is found in the second? matching group
-                    link = link.Trim(new []{'\'', '"'});  // removes the "" or '' around the link
-                    //string link = Regex.Match(anchorLink.Value, "href\\s*=\\s*(\\'[^\\']*\\')|(\\\"[^\"]*\\\")", RegexOptions.IgnoreCase).Groups[0].Value;
-                    links.Add(link);
-                }
-            }
-           
-            List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
-            foreach (string link in links)
-            {
-                URLData url = new URLData(link);
-                VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.HostName);   // Checks if the link's hostname has already been analyzed
-                if (alreadyAnalyzed == null)
-                {
-                    VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
-                    /*
-                     * Disabled for testing 
-                     * VirusTotal_API.PerformAPICall(link_scan);
-                    */
-                    VirusTotalScans.Add(link_scan);
-                    url.VTScan = link_scan;
-                } else
-                {
-                    url.VTScan = alreadyAnalyzed;
-                }
-                urls_in_mail.Add(url);
-                if (! binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
-                {
-                    binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
-                }
-            }
-            // Compute the body features that include VirusTotal
-            vt_l_maximum = 0;
-            vt_l_positives = 0;
-            vt_l_clean = 0;
-            vt_l_unknown = 0;
-            URLData secondCandidate = null;
-            foreach (URLData _u in urls_in_mail)
-            {
-                if (_u.VTScan.IsUnkown)
-                {
-                    vt_l_unknown++;
-                    secondCandidate = _u;
-                } else
-                {
-                    if (_u.VTScan.NMalicious == 0)
-                    {
-                        vt_l_clean++;
-                    } 
-                    else if (_u.VTScan.NMalicious > 0)
-                    {
-                        vt_l_positives++;
-                        if (vt_l_maximum < _u.VTScan.NMalicious)
-                        {
-                            vt_l_maximum = _u.VTScan.NMalicious;
-                            MailURL = _u;
-                        }
-                    }
-                }
-            }
-            vt_l_rate = vt_l_positives / urls_in_mail.Count;
-            
-            // Based on these 5 features, we take the most dangerous URL and compute the URL feature on that URL
-            if (MailURL == null)
-            {
-                if (secondCandidate == null)
-                {
-                    MailURL = urls_in_mail[0];  // We could as well take one at random 
-                } else
-                {
-                    MailURL = secondCandidate;
-                }
-            }
+            ComputeLinkBodyFeatures();  // This also sets MailURL
+
             // -- URL features 
-            MailURL.ComputeURLFeatures();
-            // ---- URL Domain features
-            MailURL.ComputeDomainFeatures();
+            if (MailURL != null)
+            {
+                MailURL.ComputeURLFeatures();
+                // ---- URL Domain features
+                MailURL.ComputeDomainFeatures();
+            }
 
             // -- Attachment features
             foreach (Attachment att in attachments)
             {
                 using (var md5 = MD5.Create())
                 {
-                    //md5.ComputeHash(a);  att should be a Stream
+                    //md5.ComputeHash(att);  att should be a Stream
                 }
             }
 
@@ -221,6 +138,105 @@ namespace PhishingDataCollector
             n_table_tag = rx.Matches(_HTMLBody).Count;
             //Feature automated_readability_index
             automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, "it");
+        }
+
+        /**
+         * Computes the features of the body that refer to links in the email: 
+         * binary_URL_bag_of_words, vt_l_maximum, vt_l_positives, vt_l_clean, vt_l_unknown
+         * It also sets the most dangerous URL of the email (URLMail) based on these features 
+         */
+        private void ComputeLinkBodyFeatures()
+        {
+
+            List<string> links = new List<string>();
+            if (plain_text)  // If the email is not in HTML
+            {
+                MatchCollection linksMatch = _url_address_regex.Matches(_mailBody);
+                foreach (Match lMatch in linksMatch)
+                {
+                    string link = lMatch.Value;
+                    links.Add(link);
+                }
+            }
+            else
+            {
+                MatchCollection _anchors = Regex.Matches(_HTMLBody, @"<a [^>]*href\s*=\s*(\'[^\']*\'|""[^""]*"").*>[^<]*<\s*\/a\s*>", RegexOptions.IgnoreCase);
+                foreach (Match anchorLink in _anchors)
+                {
+                    string link = anchorLink.Groups[1].Value;  // the quoted URL is found in the second? matching group
+                    link = link.Trim(new[] { '\'', '"' });  // removes the "" or '' around the link
+                    //string link = Regex.Match(anchorLink.Value, "href\\s*=\\s*(\\'[^\\']*\\')|(\\\"[^\"]*\\\")", RegexOptions.IgnoreCase).Groups[0].Value;
+                    links.Add(link);
+                }
+            }
+
+            List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
+            foreach (string link in links)
+            {
+                URLData url = new URLData(link);
+                VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.HostName);   // Checks if the link's hostname has already been analyzed
+                if (alreadyAnalyzed == null)
+                {
+                    VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
+                    /*
+                     * Disabled for testing 
+                     * VirusTotal_API.PerformAPICall(link_scan);
+                    */
+                    VirusTotalScans.Add(link_scan);
+                    url.VTScan = link_scan;
+                }
+                else
+                {
+                    url.VTScan = alreadyAnalyzed;
+                }
+                urls_in_mail.Add(url);
+                if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
+                {
+                    binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
+                }
+            }
+            vt_l_maximum = 0;
+            vt_l_positives = 0;
+            vt_l_clean = 0;
+            vt_l_unknown = 0;
+            URLData secondCandidate = null;
+            foreach (URLData _u in urls_in_mail)
+            {
+                if (_u.VTScan.IsUnkown)
+                {
+                    vt_l_unknown++;
+                    secondCandidate = _u;
+                }
+                else
+                {
+                    if (_u.VTScan.NMalicious == 0)
+                    {
+                        vt_l_clean++;
+                    }
+                    else if (_u.VTScan.NMalicious > 0)
+                    {
+                        vt_l_positives++;
+                        if (vt_l_maximum < _u.VTScan.NMalicious)
+                        {
+                            vt_l_maximum = _u.VTScan.NMalicious;
+                            MailURL = _u;  // Take _u as the most dangerous link
+                        }
+                    }
+                }
+            }
+            vt_l_rate = vt_l_positives / urls_in_mail.Count;
+            // Based on these 5 features, we take the most dangerous URL and compute the URL feature on that URL
+            if (MailURL == null)
+            {
+                if (secondCandidate == null)
+                {
+                    MailURL = urls_in_mail[0];  // We could as well take one at random 
+                }
+                else
+                {
+                    MailURL = secondCandidate;
+                }
+            }
         }
 
         private void ComputeSubjectFeatures() 

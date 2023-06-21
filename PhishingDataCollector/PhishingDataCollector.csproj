@@ -260,6 +260,9 @@
     </Compile>
     <Compile Include="MailData.cs" />
     <Compile Include="Utils\APIFeatures\BlacklistURL.cs" />
+    <Compile Include="Utils\APIFeatures\WhoIS.cs" />
+    <Compile Include="Utils\APIFeatures\DNSInfo.cs" />
+    <Compile Include="Utils\APIFeatures\PageRank.cs" />
     <Compile Include="Utils\APIFeatures\OriginIP.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -268,6 +271,7 @@
     <Compile Include="Utils\HttpUploadFile.cs" />
     <Compile Include="URLData.cs" />
     <Compile Include="Utils\Syllabify.cs" />
+    <Compile Include="Utils\TimeStamp.cs" />
     <Compile Include="Utils\URLsCollection.cs" />
     <EmbeddedResource Include="LaunchRibbon.resx">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
