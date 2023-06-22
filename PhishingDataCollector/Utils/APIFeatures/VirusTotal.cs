@@ -81,25 +81,27 @@ public static class VirusTotal_API {
         httpRequest.Headers.Add("x-apikey", _api_key);
         try
         {
-            HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse();
-            if (response.StatusCode == HttpStatusCode.OK)
+            using (HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse())
             {
-                Stream resultStream = response.GetResponseStream();
-                StreamReader reader = new StreamReader(resultStream);
-                string resultString = reader.ReadToEnd();
-                // Response structure: https://developers.virustotal.com/reference/url-object
-                JObject jsonObject = (JObject) ((JObject) ((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("data")).GetValue("attributes");
-                JObject scanners_results = (JObject) jsonObject.GetValue("last_analysis_results");
-                JObject total_votes = (JObject) jsonObject.GetValue("total_votes");
-                if (total_votes != null)
+                if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    vt.NHarmless = (short) total_votes.GetValue("harmless");  // Positive votes
-                    vt.NMalicious = (short) total_votes.GetValue("malicious");  // Negative votes
-                } 
+                    Stream resultStream = response.GetResponseStream();
+                    StreamReader reader = new StreamReader(resultStream);
+                    string resultString = reader.ReadToEnd();
+                    // Response structure: https://developers.virustotal.com/reference/url-object
+                    JObject jsonObject = (JObject)((JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("data")).GetValue("attributes");
+                    JObject scanners_results = (JObject)jsonObject.GetValue("last_analysis_results");
+                    JObject total_votes = (JObject)jsonObject.GetValue("total_votes");
+                    if (total_votes != null)
+                    {
+                        vt.NHarmless = (short)total_votes.GetValue("harmless");  // Positive votes
+                        vt.NMalicious = (short)total_votes.GetValue("malicious");  // Negative votes
+                    }
+                    else { vt.SetToUnknown(); }
+                }
                 else { vt.SetToUnknown(); }
+                response.Close();
             }
-            else { vt.SetToUnknown(); }
-            response.Close();
         }
         catch (Exception ex)  // when (ex is JsonException || ex is KeyNotFoundException)
         {

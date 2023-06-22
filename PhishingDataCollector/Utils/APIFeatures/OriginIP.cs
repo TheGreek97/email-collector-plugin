@@ -115,21 +115,24 @@ namespace PhishingDataCollector
 
             try
             {
-                var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result;
-                if (response.IsSuccessStatusCode)
+                using (var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result)
                 {
-                    string resultString = response.Content.ReadAsStringAsync().Result;
-
-                    JObject jsonObject = (JObject)JsonConvert.DeserializeObject(resultString);
-                    JObject country = (JObject)jsonObject.GetValue("country");
-                    if (country != null)
+                    if (response.IsSuccessStatusCode)
                     {
-                        originIP.CountryName = (string)country.GetValue("name");
-                        originIP.RegionName = (string)((JObject)country.GetValue("wbRegion")).GetValue("value");
+                        string resultString = response.Content.ReadAsStringAsync().Result;
+
+                        JObject jsonObject = (JObject)JsonConvert.DeserializeObject(resultString);
+                        JObject country = (JObject)jsonObject.GetValue("country");
+                        if (country != null)
+                        {
+                            originIP.CountryName = (string)country.GetValue("name");
+                            originIP.RegionName = (string)((JObject)country.GetValue("wbRegion")).GetValue("value");
+                        }
+                        else { originIP.SetToUnknown(); }
                     }
                     else { originIP.SetToUnknown(); }
                 }
-                else { originIP.SetToUnknown(); }
+                    
             }
             catch (Exception ex)
             {

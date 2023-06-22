@@ -19,7 +19,7 @@ namespace PhishingDataCollector
         public DateTime DomainExpirationDate { set; get; }
         public string DomainName { set; get; }
         public string Registrar { set; get; }
-        public JObject NameServers { set; get; }
+        public JArray NameServers { set; get; }
 
         public WhoIS (string server) : base(server)
         {
@@ -27,13 +27,17 @@ namespace PhishingDataCollector
         }
         public WhoIS(string server, DateTime creation_date, DateTime expiration_date) : base(server)
         {
+            SetToUnknown();
             DomainCreationDate = creation_date;
             DomainExpirationDate = expiration_date;
         }
         public void SetToUnknown()
         {
-            DomainCreationDate = TimeStamp.Origin;
-            DomainExpirationDate = TimeStamp.Origin;
+            DomainName = string.IsNullOrEmpty(DomainName) ? "" : DomainName;
+            Registrar = string.IsNullOrEmpty(Registrar) ? "" : Registrar; ;
+            DomainCreationDate = DomainCreationDate == null ? TimeStamp.Origin : DomainCreationDate;
+            DomainExpirationDate = DomainExpirationDate == null ? TimeStamp.Origin : DomainExpirationDate; ;
+            NameServers = NameServers == null ? new JArray() : NameServers;
         }
         public double GetFeatureCreationDate()  
         {
@@ -93,7 +97,7 @@ namespace PhishingDataCollector
         private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__WHOIS_API");
         private const string _api_request_url = "https://api.apilayer.com/whois/query";
 
-        private static string datetime_format = "yyyy-MM-dd HH-mm-ss";
+        private static string datetime_format = "yyyy-MM-dd HH:mm:ss";
         private static CultureInfo provider = CultureInfo.InvariantCulture;
 
         public static async Task PerformAPICall(WhoIS domain)
@@ -107,27 +111,37 @@ namespace PhishingDataCollector
             httpRequest.Headers.Add("apikey", _api_key);
             try
             {
-                HttpWebResponse response = (HttpWebResponse) await httpRequest.GetResponseAsync();  //FIXME! vedi immagine messaggio
-                if (response.StatusCode == HttpStatusCode.OK)
+                using (HttpWebResponse response = (HttpWebResponse)await httpRequest.GetResponseAsync())
                 {
-                    Stream resultStream = response.GetResponseStream();
-                    StreamReader reader = new StreamReader(resultStream);
-                    string resultString = reader.ReadToEnd();
-                    // Response structure: https://developers.virustotal.com/reference/url-object
-                    JObject jsonObject = (JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("result");
-                    
-                    if (jsonObject != null)
+                    if (response.StatusCode == HttpStatusCode.OK)
                     {
-                        domain.DomainName = (string)jsonObject.GetValue("domain_name");
-                        domain.Registrar = (string)jsonObject.GetValue("registrar");
-                        domain.DomainCreationDate = DateTime.ParseExact ((string)jsonObject.GetValue("creation_date"), datetime_format, provider);
-                        domain.DomainExpirationDate = DateTime.ParseExact((string)jsonObject.GetValue("expiration_date"), datetime_format, provider);
-                        domain.NameServers = (JObject)jsonObject.GetValue("name_servers");
+                        Stream resultStream = response.GetResponseStream();
+                        StreamReader reader = new StreamReader(resultStream);
+                        string resultString = reader.ReadToEnd();
+                        // Response structure: https://developers.virustotal.com/reference/url-object
+                        JObject jsonObject = (JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("result");
+
+                        if (jsonObject != null)
+                        {
+                            domain.DomainName = (string)jsonObject.GetValue("domain_name") ?? null;
+                            domain.Registrar = (string)jsonObject.GetValue("registrar") ?? null;
+                            DateTime temp = new DateTime();
+                            if (DateTime.TryParseExact((string)jsonObject.GetValue("creation_date"), datetime_format, provider, DateTimeStyles.None, out temp))
+                            {
+                                domain.DomainCreationDate = temp;
+                            }
+                            if (DateTime.TryParseExact((string)jsonObject.GetValue("expiration_date"), datetime_format, provider, DateTimeStyles.None, out temp))
+                            {
+                                domain.DomainExpirationDate = temp;
+                            }
+                            //domain.DomainCreationDate = DateTime.ParseExact((string)jsonObject.GetValue("creation_date"), datetime_format, provider);
+                            domain.NameServers = (JArray) jsonObject.GetValue("name_servers");
+                        }
+                        else { domain.SetToUnknown(); }
                     }
                     else { domain.SetToUnknown(); }
+                    response.Close();
                 }
-                else { domain.SetToUnknown(); }
-                response.Close();
             }
             catch (Exception ex)  // when (ex is JsonException || ex is KeyNotFoundException)
             {

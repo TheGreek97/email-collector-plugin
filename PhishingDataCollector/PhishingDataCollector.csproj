@@ -291,7 +291,6 @@
     <None Include="app.config" />
     <None Include="output\headers_example.csv" />
     <None Include="packages.config" />
-    <None Include="PhishingDataCollector.pfx" />
     <None Include="PhishingDataCollector_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -329,11 +328,10 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>
-    </ManifestKeyFile>
+    <ManifestKeyFile>PhishingDataCollector_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>0603A793EB76FEBFFCB18CC4E2232B52F15A6DFC</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>BB0871BE161C2776957150D713199B1A7A537BA8</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

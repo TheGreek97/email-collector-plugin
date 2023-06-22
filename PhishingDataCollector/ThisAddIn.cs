@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Net.Http;
 using System.Windows.Forms;
 using System;
+using System.Net;
 
 namespace PhishingDataCollector
 {
@@ -29,6 +30,8 @@ namespace PhishingDataCollector
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+            //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
         }
 
 
@@ -38,10 +41,11 @@ namespace PhishingDataCollector
 
             foreach (MailItem mail in inbox.Items)
             {
-                if (mail != null)
+                if (mail != null) // && if mail.id is in the file with all the alrady processed emails
                 {
                     MailData md = computeMailFeatures(in mail);
                     mailList.Add(md);
+                    // add the mail.id to the file containing the processed emails
                 }
             }
 

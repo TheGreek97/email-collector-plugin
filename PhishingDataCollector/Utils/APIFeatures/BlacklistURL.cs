@@ -57,24 +57,26 @@ public static class BlacklistURL_API {
         HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
         httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
         try {
-            HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse();
-            if (response.StatusCode == HttpStatusCode.OK)
+            using (HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse())
             {
-                Stream resultStream = response.GetResponseStream();
-                StreamReader reader = new StreamReader(resultStream);
-                string resultString = reader.ReadToEnd();
-
-                JObject jsonObject = (JObject)JsonConvert.DeserializeObject(resultString);
-                //JObject blacklists = (JObject)jsonObject.GetValue("blacklists")
-                JToken val = jsonObject.GetValue("detections");
-                if (val != null)
+            if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    bl.NBlacklistsDetected = (short)val;
-                } 
-                else {  bl.SetToUnknown();  }
+                    Stream resultStream = response.GetResponseStream();
+                    StreamReader reader = new StreamReader(resultStream);
+                    string resultString = reader.ReadToEnd();
+
+                    JObject jsonObject = (JObject)JsonConvert.DeserializeObject(resultString);
+                    //JObject blacklists = (JObject)jsonObject.GetValue("blacklists")
+                    JToken val = jsonObject.GetValue("detections");
+                    if (val != null)
+                    {
+                        bl.NBlacklistsDetected = (short)val;
+                    }
+                    else { bl.SetToUnknown(); }
+                }
+                else { bl.SetToUnknown(); }
+                response.Close();
             }
-            else {  bl.SetToUnknown(); }
-            response.Close();
         }
         catch (Exception ex) // when (ex is JsonException || ex is KeyNotFoundException)
         {

@@ -75,21 +75,23 @@ namespace PhishingDataCollector
 
             try
             {
-                var response = (await ThisAddIn.HTTPCLIENT.GetAsync(api_url));
-                if (response.IsSuccessStatusCode)
+                using (var response = (await ThisAddIn.HTTPCLIENT.GetAsync(api_url)))
                 {
-                    string resultString = response.Content.ReadAsStringAsync().Result;
-
-                    JObject jsonObject = (JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("response")[0];  // contains the array of results (in our case it should hold only 1 element
-
-                    if (jsonObject != null)
+                    if (response.IsSuccessStatusCode)
                     {
-                        page.RankDecimal = (byte) jsonObject.GetValue("page_rank_decimal");
-                        page.RankAbsolute = (int) jsonObject.GetValue("rank");
+                        string resultString = response.Content.ReadAsStringAsync().Result;
+
+                        JObject jsonObject = (JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("response")[0];  // contains the array of results (in our case it should hold only 1 element
+
+                        if (jsonObject != null)
+                        {
+                            page.RankDecimal = (byte)jsonObject.GetValue("page_rank_decimal");
+                            page.RankAbsolute = (int)jsonObject.GetValue("rank");
+                        }
+                        else { page.SetToUnknown(); }
                     }
                     else { page.SetToUnknown(); }
                 }
-                else { page.SetToUnknown(); }
             }
             catch (Exception ex)
             {

@@ -13,9 +13,11 @@ namespace PhishingDataCollector
         public string HostName { get; }
         public string DomainName { get; set; }
         private string Protocol { get; }
+        private string Port { get; }
 
         //URL features
         public bool has_https;
+        public bool protocol_port_match_binary;
 
         //Domain-based features
         public bool DNS_info_exists_binary;
@@ -27,24 +29,22 @@ namespace PhishingDataCollector
         public double domain_reg_length;
         public bool abnormal_URL;
         public byte n_name_servers;
-
+        public bool https_not_trusted;
         public URLData(string uRL)
         {
             uRL = Regex.Replace(uRL, @"[\\""']+", "");
             _URL = uRL;
-            HostName = Regex.Match(uRL, @"^(?:\w+:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?[^:\/?\n]+", RegexOptions.IgnoreCase).Groups[0].Value; // Host name (e.g., "www.studenti.uniba.it")
-            Protocol = Regex.Match(HostName, @"^\w+:", RegexOptions.IgnoreCase).Value;  // the protocol can be http, https, ftp, etc.
-            if (! string.IsNullOrEmpty(Protocol) ) {
-                Protocol = Protocol.Substring(0, Protocol.Length - 1); // strip the trailing ":"
-            }
+            Match urlMatch = Regex.Match(uRL, @"^(?:(\w+):\/\/)?(?:[^@\/\n]+@)?((?:www\.)?[^:\/?\n]+)\:?(\d)*", RegexOptions.IgnoreCase);
+            Protocol = urlMatch.Groups[1].Value;  // the protocol can be http, https, ftp, etc.
+            HostName = urlMatch.Groups[2].Value; // Host name (e.g., "www.studenti.uniba.it")
+            Port = urlMatch.Groups[3].Value;  // Port (e.g., "8080")
+
             if (!string.IsNullOrEmpty(HostName))
             {
-                HostName = Regex.Replace(HostName, @"^\w+:\/\/", "", RegexOptions.IgnoreCase);  // strip the protocol
-                DomainName = Regex.Match(HostName, @"\w+\.\w+$").Value;  //The Domain name (e.g., "uniba.it")
-                if (!string.IsNullOrEmpty(DomainName)) { 
-                    _TLD = Regex.Match(DomainName, @"\.\w+$").Value;  // Top-Level Domain  (e.g., ".it) 
-                } else
-                {
+                Match domainMatch = Regex.Match(HostName, @"\w+(\.\w+)$");  // Domain name (e.g., "uniba.it")
+                DomainName = domainMatch.Groups[0].Value;  // the full match
+                _TLD = domainMatch.Groups[1].Value;
+                if (string.IsNullOrEmpty(DomainName)) {
                     DomainName = HostName;
                 }
             }
@@ -52,6 +52,7 @@ namespace PhishingDataCollector
 
         public void ComputeURLFeatures ()
         {
+            ComputeProtocolPortMatchFeature();
             has_https = Regex.IsMatch(Protocol, "https", RegexOptions.IgnoreCase); 
         }
 
@@ -77,6 +78,54 @@ namespace PhishingDataCollector
             domain_reg_length = whois.GetFeatureDomainRegLength();
             abnormal_URL = whois.GetFeatureAbnormalURL();
             n_name_servers = whois.GetFeatureNumNameServers();
+        }
+
+        private void ComputeProtocolPortMatchFeature ()
+        {
+            protocol_port_match_binary = true;
+            if (string.IsNullOrEmpty(Protocol))
+            {
+                return;
+            }
+            if (Protocol == "http")
+            {
+                protocol_port_match_binary = string.IsNullOrEmpty(Port) || 
+                    Port == "80" || Port == "8000" || Port == "8080" || Port == "8081";
+            } else if (Protocol == "https")
+            {
+                protocol_port_match_binary = string.IsNullOrEmpty(Port) || Port == "443";
+            } else if (Protocol == "file" || Protocol == "mailto" || Protocol == "news" || 
+                Protocol == "sms" || Protocol == "callto" || Protocol == "tel")
+            {
+                protocol_port_match_binary = string.IsNullOrEmpty(Port);
+            } else if (Protocol == "ftp")
+            {
+                protocol_port_match_binary = Port == "21";
+            }
+            else if (Protocol == "ssh")
+            {
+                protocol_port_match_binary = Port == "22";
+            }
+            else if (Protocol == "telnet")
+            {
+                protocol_port_match_binary = Port == "23";
+            }
+            else if (Protocol == "gopher")
+            {
+                protocol_port_match_binary = Port == "70";
+            }
+            else if (Protocol == "rdp")  // Remote Desktop Protocol
+            {
+                protocol_port_match_binary = Port == "3389";
+            }
+            else if (Protocol == "ldap")  // Lightweight Directory Access Protocol
+            {
+                protocol_port_match_binary = Port == "389";
+            }
+            else if (Protocol == "nntp")  // Network News Transfer Protocol
+            {
+                protocol_port_match_binary = Port == "119";
+            }
         }
     }
 
