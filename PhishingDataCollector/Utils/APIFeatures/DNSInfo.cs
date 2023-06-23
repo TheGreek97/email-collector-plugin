@@ -63,14 +63,13 @@ namespace PhishingDataCollector
 
     public static class DNSInfo_API
     {
+        static readonly LookupClient Client = new LookupClient(new IPAddress(134744072));  // 134744072 is the representation in long of the Google DNS "8.8.8.8"
         public static void PerformAPICall(DNSInfo domain)
         {
-            //var lookup = new LookupClient(IPAddress.Parse("8.8.8.8"));
-            var lookup = new LookupClient(new IPAddress(134744072));  // 134744072 is the representation in long of the Google DNS "8.8.8.8"
             try
             {
                 string address = domain.Address.ToLower();
-                var result = lookup.Query(address, QueryType.ANY);
+                var result = Client.Query(address, QueryType.ANY);
                 var record = result?.Answers?.ToArray()?.FirstOrDefault();
                 //domain.IP = result?.Answers?.ARecords()?.FirstOrDefault()?.Address;
                 domain.DomainName = record?.DomainName.ToString().ToLower();
@@ -78,8 +77,9 @@ namespace PhishingDataCollector
                 domain.RecordType = record?.RecordType.ToString();
                 return;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DnsResponseException || ex is ArgumentNullException) 
             {
+                Debug.WriteLine("DNS Info exception:");
                 Debug.WriteLine(ex);
                 domain.SetToUnknown();
                 return;

@@ -291,7 +291,6 @@
     <None Include=".env" />
     <None Include=".env.example" />
     <None Include="app.config" />
-    <None Include="output\headers_example.csv" />
     <None Include="packages.config" />
     <None Include="PhishingDataCollector_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">

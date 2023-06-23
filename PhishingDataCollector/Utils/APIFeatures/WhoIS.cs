@@ -56,14 +56,8 @@ namespace PhishingDataCollector
         }
         public bool GetFeatureAbnormalURL ()  // abnormal_URL
         {
-            try
-            {
-                string claimedIdentity = Regex.Match(DomainName, @"(\w*)\.\w*$").Groups[1].Value;
-                return claimedIdentity.Contains(Registrar);
-            } catch (Exception)
-            {
-                return false;
-            }
+            string claimedIdentity = Regex.Match(DomainName, @"(\w*)\.\w*$")?.Groups[1].Value;
+            return claimedIdentity.Contains(Registrar);
         }
         public byte GetFeatureNumNameServers()  // n_name_servers
         {
@@ -110,10 +104,10 @@ namespace PhishingDataCollector
         private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__WHOIS_API");
         private const string _api_request_url = "https://api.apilayer.com/whois/query";
 
-        private static string datetime_format = "yyyy-MM-dd HH:mm:ss";
-        private static CultureInfo provider = CultureInfo.InvariantCulture;
+        private static readonly string datetime_format = "yyyy-MM-dd HH:mm:ss";
+        private static readonly CultureInfo provider = CultureInfo.InvariantCulture;
 
-        public static async Task PerformAPICall(WhoIS domain)
+        public static void PerformAPICall(WhoIS domain)
         {
             var queryParameters = new Dictionary<string, string>()
             {
@@ -124,7 +118,7 @@ namespace PhishingDataCollector
             httpRequest.Headers.Add("apikey", _api_key);
             try
             {
-                using (HttpWebResponse response = (HttpWebResponse)await httpRequest.GetResponseAsync())
+                using (HttpWebResponse response =  (HttpWebResponse) httpRequest.GetResponse())
                 {
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
@@ -149,7 +143,15 @@ namespace PhishingDataCollector
                                 domain.DomainExpirationDate = temp;
                             }
                             //domain.DomainCreationDate = DateTime.ParseExact((string)jsonObject.GetValue("creation_date"), datetime_format, provider);
-                            domain.NameServers = (JArray) jsonObject.GetValue("name_servers");
+                             try
+                             {
+                                domain.NameServers = new JArray(jsonObject.GetValue("name_servers"));
+                             } catch (System.InvalidCastException ex)
+                             {
+                                Debug.WriteLine("Invalid Cast exception!");
+                                Debug.WriteLine(ex);
+                                domain.NameServers = new JArray();
+                             }
                         }
                         else { domain.SetToUnknown(); }
                     }
@@ -158,9 +160,14 @@ namespace PhishingDataCollector
                 }
                 
             }
-            catch (Exception ex)  // when (ex is JsonException || ex is KeyNotFoundException)
+            catch (Exception ex) when (ex is JsonException || ex is KeyNotFoundException || ex is WebException)
             {
+                Debug.WriteLine("WhoIS API exception:");
                 Debug.WriteLine(ex);
+                if (ex is WebException)
+                {
+                    Debug.WriteLine(requestURL);
+                }
             }
         }
     }

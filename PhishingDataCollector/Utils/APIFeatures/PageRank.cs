@@ -32,9 +32,9 @@ namespace PhishingDataCollector
             return RankAbsolute;
         }
         public void SetToUnknown()
-        {
-            RankDecimal = 0;
-            RankAbsolute = null;
+        { 
+            RankDecimal = RankDecimal != 0 ? RankDecimal : (byte) 0;
+            RankAbsolute = RankAbsolute != null ? RankAbsolute : null;
         }
     }
 
@@ -61,7 +61,7 @@ namespace PhishingDataCollector
 
         private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__OPEN_PAGE_RANK");
         private const string _api_request_url = "https://openpagerank.com/api/v1.0/getPageRank";
-        public static async Task PerformAPICall(PageRank page)
+        public static void PerformAPICall(PageRank page)
         {
             var queryParameters = new Dictionary<string, string>()
             {
@@ -69,13 +69,12 @@ namespace PhishingDataCollector
                 ["API-OPR"] = _api_key
             };
             var api_url = QueryHelpers.AddQueryString(_api_request_url, queryParameters);
-
-            ThisAddIn.HTTPCLIENT.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue("application/json"));
-
+            
             try
             {
-                using (var response = (await ThisAddIn.HTTPCLIENT.GetAsync(api_url)))
+                //if (ThisAddIn.HTTPCLIENT == null) ThisAddIn.HTTPCLIENT = new System.Net.Http.HttpClient();
+                ThisAddIn.HTTPCLIENT.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result;
                 {
                     if (response.IsSuccessStatusCode)
                     {
@@ -91,10 +90,12 @@ namespace PhishingDataCollector
                         else { page.SetToUnknown(); }
                     }
                     else { page.SetToUnknown(); }
+                    response.Dispose();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DnsClient.DnsResponseException || ex is JsonException)
             {
+                page.SetToUnknown();
                 Debug.WriteLine(ex);
             }
             return;

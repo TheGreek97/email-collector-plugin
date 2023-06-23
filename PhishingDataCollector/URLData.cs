@@ -13,7 +13,8 @@ namespace PhishingDataCollector
 
         public VirusTotalScan VTScan { get; set; }
         public string HostName { get; }
-        public string DomainName { get; set; }
+        public string DomainName { get; }
+        public string ProtocolDomainName { get; }
         private string Protocol { get; }
         private string Port { get; }
 
@@ -40,7 +41,7 @@ namespace PhishingDataCollector
             Protocol = urlMatch.Groups[1].Value;  // the protocol can be http, https, ftp, etc.
             HostName = urlMatch.Groups[2].Value; // Host name (e.g., "www.studenti.uniba.it")
             Port = urlMatch.Groups[3].Value;  // Port (e.g., "8080")
-
+            
             if (!string.IsNullOrEmpty(HostName))
             {
                 Match domainMatch = Regex.Match(HostName, @"\w+(\.\w+)$");  // Domain name (e.g., "uniba.it")
@@ -49,6 +50,8 @@ namespace PhishingDataCollector
                 if (string.IsNullOrEmpty(DomainName)) {
                     DomainName = HostName;
                 }
+                ProtocolDomainName = string.IsNullOrEmpty(Protocol) ? DomainName : Protocol + "://" + DomainName;
+
             }
         }
 
@@ -68,14 +71,14 @@ namespace PhishingDataCollector
 
             // Page Rank
             
-            PageRank pr = new PageRank(DomainName);
+            PageRank pr = new PageRank(ProtocolDomainName);
             PageRank_API.PerformAPICall(pr);
             page_rank = pr.GetFeaturePageRank();
             website_traffic = pr.GetFeatureWebsiteTraffic();
-            /*
+            
             // WhoIS Data
             WhoIS whois = new WhoIS(DomainName);
-            await WhoIS_API.PerformAPICall(whois);
+            WhoIS_API.PerformAPICall(whois);
             domain_creation_date = whois.GetFeatureCreationDate();
             domain_expiration_date = whois.GetFeatureExpirationDate();
             domain_reg_length = whois.GetFeatureDomainRegLength();
@@ -83,7 +86,7 @@ namespace PhishingDataCollector
             n_name_servers = whois.GetFeatureNumNameServers();
             // Certificate 
             https_not_trusted = whois.GetFeatureSelfSignedHTTPS();
-            */
+            
             return;
         }
 

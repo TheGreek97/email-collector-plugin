@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
+using DnsClient;
 
 namespace PhishingDataCollector
 {
@@ -102,7 +103,7 @@ namespace PhishingDataCollector
 
         private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__BIGDATACLOUD");
         private const string _api_request_url = "https://api.bigdatacloud.net/data/country-by-ip";
-        public static async Task PerformAPICall(OriginIP originIP)
+        public static void PerformAPICall(OriginIP originIP)
         {
             var queryParameters = new Dictionary<string, string>()
             {
@@ -111,13 +112,12 @@ namespace PhishingDataCollector
             };
             var api_url = QueryHelpers.AddQueryString(_api_request_url, queryParameters);
 
-            ThisAddIn.HTTPCLIENT.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue("application/json"));
 
             try
             {
-                if (ThisAddIn.HTTPCLIENT == null) ThisAddIn.HTTPCLIENT = new System.Net.Http.HttpClient();
-                using (var response = await ThisAddIn.HTTPCLIENT.GetAsync(api_url))
+                //if (ThisAddIn.HTTPCLIENT == null) ThisAddIn.HTTPCLIENT = new System.Net.Http.HttpClient();
+                ThisAddIn.HTTPCLIENT.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result;
                 {
                     if (response.IsSuccessStatusCode)
                     {
@@ -134,9 +134,9 @@ namespace PhishingDataCollector
                     }
                     else { originIP.SetToUnknown(); }
                 }
-                    
+                response.Dispose();   
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DnsResponseException || ex is JsonException)
             {
                 Debug.WriteLine(ex);
             }

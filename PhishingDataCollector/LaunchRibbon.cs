@@ -13,7 +13,6 @@ namespace PhishingDataCollector
         {
             Base.Ribbon.Global = true;
             Base.Ribbon.RibbonType = "Microsoft.Outlook.Explorer";
-            Debug.WriteLine("Context: " + Base.Ribbon.Context.ToString());
         }
 
         private void button1_Click(object sender, RibbonControlEventArgs e)

@@ -52,12 +52,12 @@ public static class BlacklistURL_API {
     private const string _api_request_url = "https://api.blacklistchecker.com/";
 
 
-    public static async Task PerformAPICall(BlacklistURL bl)
+    public static void PerformAPICall(BlacklistURL bl)
     {
         string requestURL = _api_request_url + "check/" + bl.NBlacklistsDetected;
-        HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
-        httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
         try {
+            HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
+            httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
             using (HttpWebResponse response = (HttpWebResponse)await httpRequest.GetResponseAsync())
             {
             if (response.StatusCode == HttpStatusCode.OK)
@@ -79,8 +79,9 @@ public static class BlacklistURL_API {
                 response.Close();
             }
         }
-        catch (Exception ex) // when (ex is JsonException || ex is KeyNotFoundException)
+        catch (Exception ex)
         {
+            Debug.WriteLine("Blacklist URL exception:");
             Debug.WriteLine(ex);
         }
         return;

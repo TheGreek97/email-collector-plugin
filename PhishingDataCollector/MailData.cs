@@ -1,12 +1,8 @@
-﻿using Microsoft.Office.Interop.Outlook;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Net.Mail;
 using System.Threading.Tasks;
-using Attachment = Microsoft.Office.Interop.Outlook.Attachment;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
+using System.Diagnostics;
 
 namespace PhishingDataCollector
 {
@@ -105,7 +101,7 @@ namespace PhishingDataCollector
             /* 
              * Disabled for testing 
              * */
-            //await ComputeHeaderFeatures();
+            ComputeHeaderFeatures();
             /**/
 
             // -- Subject features
@@ -128,7 +124,9 @@ namespace PhishingDataCollector
             // -- Attachment features
             foreach (string att in _mailAttachments)
             {
+                //TODO: use vt.isAttachment 
             }
+            Debug.WriteLine("Features computed for mail {0}", _mailID);
             return;
         }
 
@@ -272,9 +270,8 @@ namespace PhishingDataCollector
                 is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte) 1 : (sbyte) 0; // 1 = re, 0 = none
             }
         }
-       
 
-        private async Task ComputeHeaderFeatures()
+        private void ComputeHeaderFeatures()
         {
             n_hops = 0;
             Regex header_rx = new Regex(@"^(X-)?Received:", RegexOptions.IgnoreCase);  //"Received" or "X-Received" headers
@@ -308,7 +305,7 @@ namespace PhishingDataCollector
                 if (alreadyAnalyzedURL == null)
                 {
                     BlacklistURL blacklistsResult = new BlacklistURL(mail_server);
-                    await BlacklistURL_API.PerformAPICall(blacklistsResult);
+                    BlacklistURL_API.PerformAPICall(blacklistsResult);
                     BlacklistedURLs.Add(blacklistsResult);  // Adds the server and its result to the list of already analyzed servers
                     if (blacklistsResult.GetFeature() > 0) { n_smtp_servers_blacklist++; }  // If the server appears in at least 1 blacklist, we increase the feature by 1
                 }
@@ -334,7 +331,7 @@ namespace PhishingDataCollector
             OriginIP alreadyAnalyzedIP = (OriginIP)EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
             if ( alreadyAnalyzedIP == null) {
                 OriginIP originResult = new OriginIP(origin_server);
-                await OriginIP_API.PerformAPICall(originResult);
+                OriginIP_API.PerformAPICall(originResult);
                 EmailOriginIPs.Add(originResult);  // Adds the IP and its result to the list of already analyzed IPs
                 email_origin_location = originResult.GetFeature();
             } else {

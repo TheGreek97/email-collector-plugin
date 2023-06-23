@@ -46,19 +46,22 @@ namespace PhishingDataCollector
             var dispatcher = Dispatcher.CurrentDispatcher;
             // Get the mail list
             MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
-
-            int counter = 0;
-            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items  select mail;
-            MessageBox.Show("Esportazione dei dati iniziata. Sono presenti " + mailList.Count() + " mail da analizzare. \n" +
+            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items select mail;
+            /*MessageBox.Show("L'esportazione dei dati inizierà ora. Sono presenti " + mailList.Count() + " mail da analizzare. \n" +
             "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione. " +
-            "Al termine di quest'ultima, riceverai una notifica.", "Phishing Data Collector");
-
+            "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");
+            */
 
             List<RawMail> rawMailList = new List<RawMail>();
+            int k = 0;
             foreach (MailItem m in mailList)
             {
-                RawMail raw = ExtractRawDataFromMailItem(m);
-                rawMailList.Add(raw);
+                if (k < 20)
+                {
+                    RawMail raw = ExtractRawDataFromMailItem(m);
+                    rawMailList.Add(raw);
+                    k++;
+                }
             }
             var cts = new CancellationTokenSource();
             var po = new ParallelOptions
@@ -68,34 +71,40 @@ namespace PhishingDataCollector
             };
             try
             {
-                int length = mailList.Count();
+                int tot_n_mails = rawMailList.Count();
                 int progress = 1;
-                Parallel.ForEach(rawMailList, po, async m =>
+                var batchSize = 5;
+                int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
+                Parallel.For(0, numBatches, i =>
                 {
-                    cts.Token.ThrowIfCancellationRequested();
-                    await Task.Run(() =>
-                    {
-                        MailData data = new MailData(m);
-                        data.ComputeFeatures();
-                        return data;
-                    }).ContinueWith((prevTask) =>
-                    {
-                        MailList.Add(prevTask.Result);
-                        progress++;
-                        Debug.WriteLine("Mail {0} processed!", prevTask.Result.ID);
-                        Debug.WriteLine("{0} Remaining", length - progress);
-                    if (length - progress == 0)
-                    {
-                        dispatcher.Invoke(() =>
+                    Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
+                    Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
+                        async m =>
                         {
-                            MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Data Collector");
-                            WriteMailsToFile();
-                        });
-                    }
-                        return;
-                    });
+                            cts.Token.ThrowIfCancellationRequested();
+                            Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
+
+                            MailData data = new MailData(m);
+                            await Task.Run(() => data.ComputeFeatures()).
+                            ContinueWith((prevTask) =>
+                            {
+                                MailList.Add(data);
+                                progress++;
+                                Debug.WriteLine("Processed mail with ID: " + data.ID);
+                                Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                                if (tot_n_mails - progress == 0)
+                                {
+                                    dispatcher.Invoke(() =>
+                                    {
+                                        MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Data Collector");
+                                        WriteMailsToFile();
+                                    });
+                                }
+                                return;
+                            });
+                        }
+                    );
                 });
-                //Task.WaitAll();
             }
             catch (System.Exception e)
             {
@@ -105,118 +114,8 @@ namespace PhishingDataCollector
             {
                 cts.Dispose();
             }
+            return;
         }
-
-        /*
-        public static async Task ExecuteAddIn ()
-        {
-            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
-            
-            var dispatcher = Dispatcher.CurrentDispatcher;
-            var stopwatch = Stopwatch.StartNew();
-            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items select mail;
-            var cts = new CancellationTokenSource();
-            var po = new ParallelOptions();
-            po.CancellationToken = cts.Token;
-            po.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            try
-            {
-                int length = mailList.Count();
-                int progress = 1;
-                Parallel.ForEach(mailList, po, async m =>
-                {
-                    cts.Token.ThrowIfCancellationRequested();
-                    MailData md = await getMailFeatures(m);
-                    MailList.Add(md);
-                    progress++;
-                    Debug.WriteLine("Mail {0} processed!", md.ID);
-                    Debug.WriteLine("{0} Remaining", length - progress);
-                });
-            }
-            catch (System.Exception e)
-            {
-                Debug.WriteLine(e.Message);
-            }
-            finally
-            {
-                cts.Dispose();
-            }
-
-            Task.WaitAll();
-            stopwatch.Stop();
-            Debug.WriteLine(stopwatch.Elapsed);
-
-
-            // write mail data to an output file
-            var options = new JsonSerializerOptions
-            {
-                IncludeFields = true
-            };
-            using (StreamWriter writer = new StreamWriter(outputFile))
-            {
-                try
-                {
-                    string json = JsonSerializer.Serialize(MailList, options);
-                    writer.WriteLine(json);
-                }
-                catch (ArgumentException err)
-                {
-                    Debug.WriteLine(MailList[0]);
-                    Debug.WriteLine(err);
-                }
-                writer.Close();
-            }
-            dispatcher.Invoke(() =>
-            {
-                MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Data Collector");
-            });
-        }*/
-
-        /*
-        private static async Task<MailData> getMailFeatures(MailItem mail) {
-            string[] mail_headers;
-            try
-            {
-                string mail_headers_string = mail.PropertyAccessor.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x007D001E"); //:subject, :sender 
-                Regex headers_re = new Regex(@"\n([^\s])");
-                List<string> headers = new List<string>();
-                string [] header_rows = headers_re.Split(mail_headers_string);
-                headers.Add(header_rows[0]);  // First one is already complete
-                for (int i=1; i< header_rows.Length-1; i+=2)
-                {
-                    // Subsequent ones are pairs to be joined together: 
-                    // header_rows[1] = "R", header_rows[2] = "eceived: xxx@outlook.com",
-                    // header_rows[3] = "F", header_rows[4] = "rom: example@mail.com"...
-                    headers.Add(header_rows[i] + header_rows[i+1]);
-                }
-                mail_headers = headers.ToArray();
-            }
-            catch (System.Runtime.InteropServices.COMException err)
-            {
-                mail_headers = new string[0];
-                Debug.WriteLine($"{err.Message}");
-            }catch (System.Exception err)
-            {
-                mail_headers = new string[0];
-                Debug.WriteLine($"{err.Message}");
-            }
-
-            MailData md = new MailData(
-                id: mail.EntryID, 
-                size: mail.Size, 
-                subject: mail.Subject, 
-                body: mail.Body,
-                htmlBody: mail.HTMLBody,
-                sender: mail.SenderEmailAddress, 
-                num_recipients: mail.Recipients.Count,
-                headers: mail_headers,
-                attachments: mail.Attachments
-                //Add fields possibly required to compute features (e.g., attachments, headers)
-            );
-            md.ComputeFeatures();
-            
-            return md;
-        }*/
 
         private static RawMail ExtractRawDataFromMailItem(MailItem mail)
         {
@@ -240,11 +139,13 @@ namespace PhishingDataCollector
             }
             catch (System.Runtime.InteropServices.COMException err)
             {
+                Debug.WriteLine("Add-in COMException: ");
                 mail_headers = new string[0];
                 Debug.WriteLine($"{err.Message}");
             }
             catch (System.Exception err)
             {
+                Debug.WriteLine("Add-in Generic Exception: ");
                 mail_headers = new string[0];
                 Debug.WriteLine($"{err.Message}");
             }
@@ -299,6 +200,7 @@ namespace PhishingDataCollector
                 try
                 {
                     string json = JsonSerializer.Serialize(MailList, options);
+                    //TODO: do not save the enitre MailData object, but just the features
                     writer.WriteLine(json);
                 }
                 catch (ArgumentException err)

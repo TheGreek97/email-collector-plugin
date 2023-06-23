@@ -105,6 +105,7 @@ public static class VirusTotal_API {
         }
         catch (Exception ex)  // when (ex is JsonException || ex is KeyNotFoundException)
         {
+            Debug.WriteLine("VirusTotal Exception");
             Debug.WriteLine(ex);
         }
     }
