@@ -63,14 +63,14 @@ namespace PhishingDataCollector
 
     public static class DNSInfo_API
     {
-        public static async Task PerformAPICall(DNSInfo domain)
+        public static void PerformAPICall(DNSInfo domain)
         {
             //var lookup = new LookupClient(IPAddress.Parse("8.8.8.8"));
             var lookup = new LookupClient(new IPAddress(134744072));  // 134744072 is the representation in long of the Google DNS "8.8.8.8"
             try
             {
                 string address = domain.Address.ToLower();
-                var result = await lookup.QueryAsync(address, QueryType.ANY);
+                var result = lookup.Query(address, QueryType.ANY);
                 var record = result?.Answers?.ToArray()?.FirstOrDefault();
                 //domain.IP = result?.Answers?.ARecords()?.FirstOrDefault()?.Address;
                 domain.DomainName = record?.DomainName.ToString().ToLower();

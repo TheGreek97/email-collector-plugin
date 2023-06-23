@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Net;
 using System.IO;
+using System.Threading.Tasks;
 
 public class BlacklistURL : URLObject
 {
@@ -51,13 +52,13 @@ public static class BlacklistURL_API {
     private const string _api_request_url = "https://api.blacklistchecker.com/";
 
 
-    public static async void PerformAPICall(BlacklistURL bl)
+    public static async Task PerformAPICall(BlacklistURL bl)
     {
         string requestURL = _api_request_url + "check/" + bl.NBlacklistsDetected;
         HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
         httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
         try {
-            using (HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse())
+            using (HttpWebResponse response = (HttpWebResponse)await httpRequest.GetResponseAsync())
             {
             if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -82,6 +83,6 @@ public static class BlacklistURL_API {
         {
             Debug.WriteLine(ex);
         }
+        return;
     }
-
 }

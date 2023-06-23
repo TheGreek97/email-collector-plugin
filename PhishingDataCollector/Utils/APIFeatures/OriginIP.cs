@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
+using System.Threading.Tasks;
 
 namespace PhishingDataCollector
 {
@@ -101,7 +102,7 @@ namespace PhishingDataCollector
 
         private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__BIGDATACLOUD");
         private const string _api_request_url = "https://api.bigdatacloud.net/data/country-by-ip";
-        public static async void PerformAPICall(OriginIP originIP)
+        public static async Task PerformAPICall(OriginIP originIP)
         {
             var queryParameters = new Dictionary<string, string>()
             {
@@ -115,7 +116,8 @@ namespace PhishingDataCollector
 
             try
             {
-                using (var response = ThisAddIn.HTTPCLIENT.GetAsync(api_url).Result)
+                if (ThisAddIn.HTTPCLIENT == null) ThisAddIn.HTTPCLIENT = new System.Net.Http.HttpClient();
+                using (var response = await ThisAddIn.HTTPCLIENT.GetAsync(api_url))
                 {
                     if (response.IsSuccessStatusCode)
                     {

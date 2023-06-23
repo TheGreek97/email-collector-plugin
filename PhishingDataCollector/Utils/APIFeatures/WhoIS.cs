@@ -10,6 +10,8 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using PhishingDataCollector.Utils;
 using System.Threading.Tasks;
+using System.Security.Cryptography.X509Certificates;
+using System.Linq;
 
 namespace PhishingDataCollector
 {
@@ -20,6 +22,7 @@ namespace PhishingDataCollector
         public string DomainName { set; get; }
         public string Registrar { set; get; }
         public JArray NameServers { set; get; }
+        public X509Certificate2 Cert { set; get; }
 
         public WhoIS (string server) : base(server)
         {
@@ -72,6 +75,16 @@ namespace PhishingDataCollector
             if (n == null) { n = 0; }
             return (byte) n;
         }
+        public bool GetFeatureSelfSignedHTTPS()
+        {
+            if (Cert != null)
+            {
+                return Cert.SubjectName.RawData.SequenceEqual(Cert.IssuerName.RawData);
+            } else
+            {
+                return false;
+            }
+        }
     }
 
     public class WhoISCollection : URLsCollection
@@ -115,6 +128,7 @@ namespace PhishingDataCollector
                 {
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
+                        domain.Cert = new X509Certificate2(httpRequest.ServicePoint.Certificate);
                         Stream resultStream = response.GetResponseStream();
                         StreamReader reader = new StreamReader(resultStream);
                         string resultString = reader.ReadToEnd();
@@ -142,6 +156,7 @@ namespace PhishingDataCollector
                     else { domain.SetToUnknown(); }
                     response.Close();
                 }
+                
             }
             catch (Exception ex)  // when (ex is JsonException || ex is KeyNotFoundException)
             {

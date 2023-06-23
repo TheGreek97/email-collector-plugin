@@ -1,5 +1,7 @@
 ﻿using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace PhishingDataCollector
 {
@@ -56,20 +58,21 @@ namespace PhishingDataCollector
             has_https = Regex.IsMatch(Protocol, "https", RegexOptions.IgnoreCase); 
         }
 
-        public async void ComputeDomainFeatures()
+        public void ComputeDomainFeatures()
         {
             // DNS Lookup
             DNSInfo dnsInfo = new DNSInfo(DomainName);  // try to see if domain.com is needed instead of sub.domain.com
-            await DNSInfo_API.PerformAPICall(dnsInfo);
+            DNSInfo_API.PerformAPICall(dnsInfo);
             DNS_TTL = dnsInfo.GetFeatureTTL();
             DNS_info_exists_binary = dnsInfo.GetFeatureDNSInfoExists();
 
             // Page Rank
+            
             PageRank pr = new PageRank(DomainName);
-            await PageRank_API.PerformAPICall(pr);
+            PageRank_API.PerformAPICall(pr);
             page_rank = pr.GetFeaturePageRank();
             website_traffic = pr.GetFeatureWebsiteTraffic();
-
+            /*
             // WhoIS Data
             WhoIS whois = new WhoIS(DomainName);
             await WhoIS_API.PerformAPICall(whois);
@@ -78,6 +81,10 @@ namespace PhishingDataCollector
             domain_reg_length = whois.GetFeatureDomainRegLength();
             abnormal_URL = whois.GetFeatureAbnormalURL();
             n_name_servers = whois.GetFeatureNumNameServers();
+            // Certificate 
+            https_not_trusted = whois.GetFeatureSelfSignedHTTPS();
+            */
+            return;
         }
 
         private void ComputeProtocolPortMatchFeature ()

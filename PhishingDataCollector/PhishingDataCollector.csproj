@@ -197,6 +197,7 @@
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Office.Tools.v4.0.Framework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -259,6 +260,7 @@
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
     </Compile>
     <Compile Include="MailData.cs" />
+    <Compile Include="RawMail.cs" />
     <Compile Include="Utils\APIFeatures\BlacklistURL.cs" />
     <Compile Include="Utils\APIFeatures\WhoIS.cs" />
     <Compile Include="Utils\APIFeatures\DNSInfo.cs" />

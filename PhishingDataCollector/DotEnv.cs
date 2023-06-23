@@ -16,7 +16,8 @@
 
                 if (parts.Length != 2)
                     continue;
-
+                parts[0] = parts[0].Trim();
+                parts[1] = parts[1].Trim();
                 Environment.SetEnvironmentVariable(parts[0], parts[1]);
             }
         }

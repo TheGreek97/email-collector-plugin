@@ -3,6 +3,10 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Net.Mail;
+using System.Threading.Tasks;
+using Attachment = Microsoft.Office.Interop.Outlook.Attachment;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace PhishingDataCollector
 {
@@ -46,10 +50,10 @@ namespace PhishingDataCollector
         public URLData MailURL;
 
         // public AttachmentsData attachmentFeatures;  
-        private readonly int _mailSize;
+        private readonly int _mailSize, _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
-        private readonly Attachments _mailAttachments;
+        private readonly string[] _mailAttachments;
         
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -61,8 +65,23 @@ namespace PhishingDataCollector
         private VirusTotalScansCollection VirusTotalScans = new VirusTotalScansCollection();
 
 
+        public MailData(RawMail mail)
+        {
+            // Set private fields
+            _mailID = mail.EntryID;
+            _mailSize = mail.Size;
+            _mailHeaders = mail.Headers;
+            _mailSubject = mail.Subject;
+            _mailBody = mail.Body;
+            _HTMLBody = mail.HTMLBody;
+            _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
+            _emailSender = mail.Sender;
+            _mailAttachments = mail.Attachments;
+            _num_recipients = mail.NumRecipients;
+        }
+
         public MailData(string id, int size, string subject, string body, string htmlBody,
-            string sender, int num_recipients, string [] headers, Attachments attachments)
+            string sender, int num_recipients, string [] headers, string[] attachments)
         {
             // Set private fields
             _mailID = id;
@@ -74,15 +93,20 @@ namespace PhishingDataCollector
             _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
             _emailSender = sender;
             _mailAttachments = attachments;
+            _num_recipients = num_recipients;
+        }
 
+        public void ComputeFeatures ()
+        {
             // Compute the email features
             // -- Header features
-            n_recipients = num_recipients;
+            n_recipients = _num_recipients;
             plain_text = _mailBody == _HTMLBody;
             /* 
              * Disabled for testing 
-             * ComputeHeaderFeatures();
-            */
+             * */
+            //await ComputeHeaderFeatures();
+            /**/
 
             // -- Subject features
             ComputeSubjectFeatures();
@@ -102,14 +126,10 @@ namespace PhishingDataCollector
             }
 
             // -- Attachment features
-            foreach (Attachment att in attachments)
+            foreach (string att in _mailAttachments)
             {
-                using (var md5 = MD5.Create())
-                {
-                    //md5.ComputeHash(att);  att should be a Stream
-                }
             }
-
+            return;
         }
 
         private void ComputeBodyFeatures()
@@ -254,7 +274,7 @@ namespace PhishingDataCollector
         }
        
 
-        private async void ComputeHeaderFeatures()
+        private async Task ComputeHeaderFeatures()
         {
             n_hops = 0;
             Regex header_rx = new Regex(@"^(X-)?Received:", RegexOptions.IgnoreCase);  //"Received" or "X-Received" headers
@@ -280,8 +300,7 @@ namespace PhishingDataCollector
                     x_originating_ip_idx = i;
                 }
             }
-
-            // n_smtp_servers_blacklist - Blacklists check of the traversed mailservers 
+            //  Blacklists check of the traversed mailservers  -n_smtp_servers_blacklist-
             foreach (string mail_server in servers_in_received_headers)
             {
                 // API call to check the mail_server against more than 100 blacklists
@@ -289,7 +308,7 @@ namespace PhishingDataCollector
                 if (alreadyAnalyzedURL == null)
                 {
                     BlacklistURL blacklistsResult = new BlacklistURL(mail_server);
-                    BlacklistURL_API.PerformAPICall(blacklistsResult);
+                    await BlacklistURL_API.PerformAPICall(blacklistsResult);
                     BlacklistedURLs.Add(blacklistsResult);  // Adds the server and its result to the list of already analyzed servers
                     if (blacklistsResult.GetFeature() > 0) { n_smtp_servers_blacklist++; }  // If the server appears in at least 1 blacklist, we increase the feature by 1
                 }
@@ -315,12 +334,13 @@ namespace PhishingDataCollector
             OriginIP alreadyAnalyzedIP = (OriginIP)EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
             if ( alreadyAnalyzedIP == null) {
                 OriginIP originResult = new OriginIP(origin_server);
-                OriginIP_API.PerformAPICall(originResult);
+                await OriginIP_API.PerformAPICall(originResult);
                 EmailOriginIPs.Add(originResult);  // Adds the IP and its result to the list of already analyzed IPs
                 email_origin_location = originResult.GetFeature();
             } else {
                 email_origin_location = alreadyAnalyzedIP.GetFeature();  // If the IP has already been analyzed, take the available result
             }
+            return;
         }
     }
 }
