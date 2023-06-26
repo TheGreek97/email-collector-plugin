@@ -329,10 +329,11 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>PhishingDataCollector_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>
+    </ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>BB0871BE161C2776957150D713199B1A7A537BA8</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>0E4CDB206E3C8E75E2DDD369C6F9F9AB3EA5B48F</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

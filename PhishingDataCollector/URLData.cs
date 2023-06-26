@@ -19,8 +19,16 @@ namespace PhishingDataCollector
         private string Port { get; }
 
         //URL features
+        public int n_dashes;
+        public int n_underscores;
+        public int n_dots;
+        public int n_digits;
+        public float digit_letter_ratio;
         public bool has_https;
         public bool protocol_port_match_binary;
+        public int n_slashes;
+        public string TLD;
+        public int url_length;
 
         //Domain-based features
         public bool DNS_info_exists_binary;
@@ -57,8 +65,26 @@ namespace PhishingDataCollector
 
         public void ComputeURLFeatures ()
         {
+            //Feature n_dashes
+            n_dashes = Regex.Matches(_URL, "-").Count;
+            //Feature n_underscores
+            n_underscores = Regex.Matches(_URL, "_").Count;
+            //Feature n_dots
+            n_dots = Regex.Matches(_URL, ".").Count;
+            //Feature n_digits
+            n_digits = Regex.Matches(_URL, "[0-9]").Count;
+            //Fetaure digit_letter_ratio
+            digit_letter_ratio = n_digits/ Regex.Matches(_URL, "[A-z]").Count;
+
             ComputeProtocolPortMatchFeature();
-            has_https = Regex.IsMatch(Protocol, "https", RegexOptions.IgnoreCase); 
+            has_https = Regex.IsMatch(Protocol, "https", RegexOptions.IgnoreCase);
+
+            //Fetaure n_slashes
+            n_slashes = Regex.Matches(_URL, "/").Count;
+            //Feature TLD
+            TLD = _TLD;
+            //Feature url_length
+            url_length = _URL.Length;
         }
 
         public void ComputeDomainFeatures()
