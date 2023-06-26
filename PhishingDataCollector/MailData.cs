@@ -35,6 +35,10 @@ namespace PhishingDataCollector
         public int n_account_in_body;
         public int n_table_tag;
         public float automated_readability_index;
+        public int n_link_mismatch;
+        public int n_links;
+        public int n_links_IP;
+        public float cap_ratio;
 
         public bool binary_URL_bag_of_words;
 
@@ -153,11 +157,10 @@ namespace PhishingDataCollector
         {
             Regex rx;
             //Feature n_html_comments_tag
-            rx = new Regex(@"<!--\b");  // Si può semplificare :), ad esempio:
-            n_html_comments_tag = rx.Matches(_HTMLBody).Count; // = Regex.Matches(_HTMLBody, @"<!--\b").Count;
+            n_html_comments_tag = Regex.Matches(_HTMLBody, @"<!--\b").Count;
             //Feature n_words_body
             rx = new Regex(@"(\w+)");
-            n_words_body = rx.Matches(_mailBody).Count;  // dovremmo considerare il body senza HTML, ovvero _plainTextBody (che è diverso da _mailBody)
+            n_words_body = Regex.Matches(_plainTextBody, @"(\w+)").Count;  // dovremmo considerare il body senza HTML, ovvero _plainTextBody (che è diverso da _mailBody)
             //Feature n_images
             rx = new Regex(@"<img", RegexOptions.IgnoreCase);
             n_images = rx.Matches(_HTMLBody).Count;
@@ -175,6 +178,26 @@ namespace PhishingDataCollector
             n_table_tag = rx.Matches(_HTMLBody).Count;
             //Feature automated_readability_index
             automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, "it");
+            //Feature with link in page
+            rx = new Regex("<a\\s+(?:[^>]*?\\s+)?href=([\"\'])(.*?)([\"\'])[A-z0 - 9,.\\/= \'\" \\-_]*>\\s*(.*)\\s*<\\/a>", RegexOptions.IgnoreCase);
+            foreach (Match m in rx.Matches(_HTMLBody))
+            {
+                //Feature n_link_mismatch
+                if(Regex.Match(m.Value, "href=([\"\'])(.*?)([\"\'])", RegexOptions.IgnoreCase) == Regex.Match(m.Value, ">\\s*(.*)\\s*<", RegexOptions.IgnoreCase))
+                {
+                    n_link_mismatch++;
+                }
+                //Feature n_links_IP
+                if (Regex.Match(m.Value, "href=([\"\'])(.*?)((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b)(.*?)([\"\'])").Success)
+                {
+                    n_links_IP++;
+                }
+            }
+            //Feature n_links
+            n_links = rx.Matches(_HTMLBody).Count;
+
+            //Feature cap_ratio
+            cap_ratio = Regex.Matches(_plainTextBody, "[A-Z]").Count / Regex.Matches(_plainTextBody, "[a-z]").Count;
         }
 
         /**
