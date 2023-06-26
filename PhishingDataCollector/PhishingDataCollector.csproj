@@ -251,6 +251,7 @@
     <Compile Include="..\PhishingDataCollector\MailData.cs">
       <Link>MailData.cs</Link>
     </Compile>
+    <Compile Include="AttachmentData.cs" />
     <Compile Include="BodyFeatures.cs" />
     <Compile Include="DotEnv.cs" />
     <Compile Include="LaunchRibbon.cs">

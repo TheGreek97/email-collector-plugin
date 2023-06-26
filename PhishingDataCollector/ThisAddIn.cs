@@ -20,8 +20,9 @@ namespace PhishingDataCollector
     {
         public static HttpClient HTTPCLIENT = new HttpClient();
 
-        static List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        static string outputFile = @"output\test.txt";
+        private static List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
+        private static string outputFile = @"output\test.txt";
+        private static bool executeInParallel = false;
 
         private LaunchRibbon taskPaneControl;
 
@@ -37,7 +38,7 @@ namespace PhishingDataCollector
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
-            ExecuteAddIn();
+            //ExecuteAddIn();
         }
 
         public static async void ExecuteAddIn()
@@ -45,18 +46,20 @@ namespace PhishingDataCollector
             
             var dispatcher = Dispatcher.CurrentDispatcher;
             // Get the mail list
-            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.DefaultStore.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
-            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items select mail;
+            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);  
+            MAPIFolder junk = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk); 
+            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items select mail; 
+            IEnumerable<MailItem> mailListJunk = from MailItem mail in junk.Items select mail; 
             /*MessageBox.Show("L'esportazione dei dati inizierà ora. Sono presenti " + mailList.Count() + " mail da analizzare. \n" +
             "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione. " +
-            "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");
-            */
+            "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");*/
 
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
             foreach (MailItem m in mailList)
             {
-                if (k < 20)
+                // TODO: Salva su file gli ID delle email già computate e, prima di ri-estrarre le feature, controlla che l'ID non sia presente su quel file    
+                if (k < 20)  // Limiter = 20 mails
                 {
                     RawMail raw = ExtractRawDataFromMailItem(m);
                     rawMailList.Add(raw);
@@ -75,36 +78,51 @@ namespace PhishingDataCollector
                 int progress = 1;
                 var batchSize = 5;
                 int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
-                Parallel.For(0, numBatches, i =>
+                if (executeInParallel)
                 {
-                    Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
-                    Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
-                        async m =>
-                        {
-                            cts.Token.ThrowIfCancellationRequested();
-                            Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
-
-                            MailData data = new MailData(m);
-                            await Task.Run(() => data.ComputeFeatures()).
-                            ContinueWith((prevTask) =>
+                    Parallel.For(0, numBatches, i =>
+                    {
+                        Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
+                        Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
+                            async m =>
                             {
-                                MailList.Add(data);
-                                progress++;
-                                Debug.WriteLine("Processed mail with ID: " + data.ID);
-                                Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                                if (tot_n_mails - progress == 0)
+                                cts.Token.ThrowIfCancellationRequested();
+                                Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
+
+                                MailData data = new MailData(m);
+                                await Task.Run(() => data.ComputeFeatures()).
+                                ContinueWith((prevTask) =>
                                 {
-                                    dispatcher.Invoke(() =>
+                                    MailList.Add(data);
+                                    Debug.WriteLine("Processed mail with ID: " + data.ID);
+                                    Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                                    if (tot_n_mails - progress == 0)
                                     {
-                                        MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Data Collector");
-                                        WriteMailsToFile();
-                                    });
-                                }
-                                return;
-                            });
-                        }
-                    );
-                });
+                                        dispatcher.Invoke(() =>
+                                        {
+                                            MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
+                                            WriteMailsToFile();
+                                        });
+                                    }
+                                    progress++;
+                                    return;
+                                });
+                            }
+                        );
+                    });
+                } else
+                {
+                    foreach (RawMail m in rawMailList) { 
+                        MailData data = new MailData(m);
+                        data.ComputeFeatures();
+                        MailList.Add(data);
+                        Debug.WriteLine("Processed mail with ID: " + data.ID);
+                        Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                        progress++;
+                    }
+                    MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
+                    WriteMailsToFile();
+                }
             }
             catch (System.Exception e)
             {
@@ -151,23 +169,14 @@ namespace PhishingDataCollector
             }
 
             // Get attachments representation from MailItem (Hash)
-            string[] attachments;
-            List<string> attachments_list = new List<string>();
+            AttachmentData[] attachments;
+            List<AttachmentData> attachments_list = new List<AttachmentData>();
             foreach (Attachment att in mail.Attachments)
             {
-                try
+                AttachmentData att_data = AttachmentData.ExtractFeatures(att);
+                if (att_data != null)
                 {
-                    string attachment_file_name = att.GetTemporaryFilePath();
-                    using (SHA256 SHA256 = SHA256Managed.Create())
-                    {
-                        using (FileStream fileStream = File.OpenRead(attachment_file_name))
-                        {
-                            string file_sha = Convert.ToBase64String(SHA256.ComputeHash(fileStream));
-                            attachments_list.Add(file_sha);
-                        }
-                    }
-                } catch (System.Exception) {
-                    attachments_list.Add(string.Empty);
+                    attachments_list.Add(att_data);
                 }
             }
             attachments = attachments_list.ToArray();

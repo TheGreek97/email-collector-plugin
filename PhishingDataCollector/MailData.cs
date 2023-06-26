@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Security.Policy;
+using System;
 
 namespace PhishingDataCollector
 {
@@ -24,7 +26,7 @@ namespace PhishingDataCollector
         public bool is_non_ASCII_subject;
         public sbyte is_re_fwd_subject;
 
-        // Body
+        // Body features
         public int n_html_comments_tag;
         public int n_words_body;
         public int n_images;
@@ -42,14 +44,31 @@ namespace PhishingDataCollector
         public short vt_l_clean;
         public short vt_l_unknown;
 
-        // URL
+        // URL eatures
         public URLData MailURL;
 
-        // public AttachmentsData attachmentFeatures;  
+        // Attachments Features
+        public byte n_attachments;
+        public byte n_image_attachments;
+        public byte n_application_attachments;
+        public byte n_message_attachments;
+        public byte n_text_attachments;
+        public byte n_video_attachments;
+        public double attachments_size;
+        public float vt_a_rate;
+        public int vt_a_maximum;
+        public byte vt_a_positives;
+        public byte vt_a_clean;
+        public byte vt_a_unknown;
+        //public byte vt_a_vulnerable;  These involve considering the Corporate anti-virus - we don't have this information
+        //public byte vt_a_partial;
+        //public byte vt_a_protected;
+
+        /* Private Fields */
         private readonly int _mailSize, _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
-        private readonly string[] _mailAttachments;
+        private readonly AttachmentData[] _mailAttachments;
         
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -77,7 +96,7 @@ namespace PhishingDataCollector
         }
 
         public MailData(string id, int size, string subject, string body, string htmlBody,
-            string sender, int num_recipients, string [] headers, string[] attachments)
+            string sender, int num_recipients, string [] headers, AttachmentData[] attachments)
         {
             // Set private fields
             _mailID = id;
@@ -100,8 +119,9 @@ namespace PhishingDataCollector
             plain_text = _mailBody == _HTMLBody;
             /* 
              * Disabled for testing 
-             * */
+             * 
             ComputeHeaderFeatures();
+            */
             /**/
 
             // -- Subject features
@@ -114,19 +134,18 @@ namespace PhishingDataCollector
             ComputeLinkBodyFeatures();  // This also sets MailURL
 
             // -- URL features 
+            /* Disabled for testing
             if (MailURL != null)
             {
                 MailURL.ComputeURLFeatures();
                 // ---- URL Domain features
                 MailURL.ComputeDomainFeatures();
-            }
+            }*/
 
             // -- Attachment features
-            foreach (string att in _mailAttachments)
-            {
-                //TODO: use vt.isAttachment 
-            }
-            Debug.WriteLine("Features computed for mail {0}", _mailID);
+            ComputeAttachmentsFeatures();
+
+            //Debug.WriteLine("Features computed for mail with ID: " + _mailID);
             return;
         }
 
@@ -191,26 +210,29 @@ namespace PhishingDataCollector
             List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
             foreach (string link in links)
             {
-                URLData url = new URLData(link);
-                VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.HostName);   // Checks if the link's hostname has already been analyzed
-                if (alreadyAnalyzed == null)
+                if (!Regex.IsMatch(link, @"^(?:phone|mailto|tel|sms|callto):") && !string.IsNullOrEmpty(link))
                 {
-                    VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
-                    /*
-                     * Disabled for testing 
-                     * VirusTotal_API.PerformAPICall(link_scan);
-                    */
-                    VirusTotalScans.Add(link_scan);
-                    url.VTScan = link_scan;
-                }
-                else
-                {
-                    url.VTScan = alreadyAnalyzed;
-                }
-                urls_in_mail.Add(url);
-                if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
-                {
-                    binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
+                    URLData url = new URLData(link);
+                    VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.HostName);   // Checks if the link's hostname has already been analyzed
+                    if (alreadyAnalyzed == null)
+                    {
+                        VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
+                        /*
+                         * Disabled for testing 
+                         * VirusTotal_API.PerformAPICall(link_scan);
+                        */
+                        VirusTotalScans.Add(link_scan);
+                        url.VTScan = link_scan;
+                    }
+                    else
+                    {
+                        url.VTScan = alreadyAnalyzed;
+                    }
+                    urls_in_mail.Add(url);
+                    if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
+                    {
+                        binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
+                    }
                 }
             }
             vt_l_maximum = 0;
@@ -242,18 +264,21 @@ namespace PhishingDataCollector
                     }
                 }
             }
-            vt_l_rate = vt_l_positives / urls_in_mail.Count;
-            // Based on these 5 features, we take the most dangerous URL and compute the URL feature on that URL
-            if (MailURL == null)
+            if (urls_in_mail.Count > 0)
             {
-                if (secondCandidate == null)
-                {
-                    MailURL = urls_in_mail[0];  // We could as well take one at random 
+                vt_l_rate = vt_l_positives / urls_in_mail.Count;
+            } else
+            {
+                vt_l_rate = 0;
+            }
+            // Based on these 5 features, we take the most dangerous URL and compute the URL feature on that URL
+            if (MailURL == null && urls_in_mail.Count > 0)
+            {
+                if (secondCandidate == null) {  // take one link at random
+                    Random random = new Random();
+                    MailURL = urls_in_mail[random.Next(0, urls_in_mail.Count - 1)];                   
                 }
-                else
-                {
-                    MailURL = secondCandidate;
-                }
+                else { MailURL = secondCandidate; }
             }
         }
 
@@ -338,6 +363,52 @@ namespace PhishingDataCollector
                 email_origin_location = alreadyAnalyzedIP.GetFeature();  // If the IP has already been analyzed, take the available result
             }
             return;
+        }
+
+        private void ComputeAttachmentsFeatures()
+        {
+            n_attachments = (byte)_mailAttachments.Count();
+            n_image_attachments = 0;
+            n_application_attachments = 0;
+            n_message_attachments = 0;
+            n_text_attachments = 0;
+            n_video_attachments = 0;
+            vt_a_positives = 0;
+            vt_a_clean = 0;
+            vt_a_maximum = 0;
+            vt_a_unknown = 0;
+            long[] att_sizes = new long[n_attachments];  // we don't directly sum up the sizes to avoid overflow
+            int i = 0;
+            if (n_attachments > 0)
+            {
+                foreach (AttachmentData att in _mailAttachments)
+                {
+                    VirusTotalScan link_scan = new VirusTotalScan(att.SHA256, isAttachment: true);
+                    VirusTotal_API.PerformAPICall(link_scan);
+                    switch (att.GetAttachmentType())
+                    {
+                        case "image": n_image_attachments++; break;
+                        case "application": n_application_attachments++; break;
+                        case "message": n_message_attachments++; break;
+                        case "text": n_text_attachments++; break;
+                        case "video": n_video_attachments++; break;
+                    }
+                    att_sizes[i] = att.Size;
+                    if (link_scan.NMalicious > 0)
+                    {
+                        vt_a_positives++;
+                        vt_a_maximum = link_scan.NMalicious > vt_a_maximum ? link_scan.NMalicious : vt_a_maximum;
+                    }
+                    else
+                    {
+                        if (link_scan.NHarmless > 0) { vt_a_clean++; }  // if there's at least 1 "harmless" vote, we can consider it clean
+                        else { vt_a_unknown++; }  // otherwise, the attachment is unknown to VirusTotal
+                    }
+                    i++;
+                }
+                attachments_size = att_sizes.Average();
+                vt_a_rate = vt_a_positives / n_attachments;
+            }
         }
     }
 }

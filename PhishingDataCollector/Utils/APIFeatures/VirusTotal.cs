@@ -5,11 +5,15 @@ using Newtonsoft.Json.Linq;
 using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 public class VirusTotalScan : URLObject
 {
     public short NMalicious { set; get; }
+    public short NSuspicious { set; get; }
     public short NHarmless { set; get; }
+    public short NUnknown { set; get; }
+    public short NScanners { set; get; }
     public bool IsUnkown { set;  get; }
     public bool IsAttachment { set; get; }
     public bool IsIPAddress { get; }
@@ -18,14 +22,22 @@ public class VirusTotalScan : URLObject
         IsIPAddress = Regex.IsMatch(server, "([\\d]{1,3}\\.){3}[\\d]{1,3}");
         GenerateBase64();
     }
-    
-    public VirusTotalScan(string server, short n_blacklist, bool isAttachment) : base(server)
+    public VirusTotalScan(string server, bool isAttachment) : base(server)
     {
         IsIPAddress = Regex.IsMatch(server, "([\\d]{1,3}\\.){3}[\\d]{1,3}");
         IsUnkown = true;
         IsAttachment = isAttachment;
         GenerateBase64();
     }
+    public VirusTotalScan(string server, short n_blacklist, bool isAttachment) : base(server)
+    {
+        IsIPAddress = Regex.IsMatch(server, "([\\d]{1,3}\\.){3}[\\d]{1,3}");
+        IsUnkown = true;
+        IsAttachment = isAttachment;
+        NMalicious = n_blacklist;
+        GenerateBase64();
+    }
+    
 
     public void SetToUnknown()
     {
@@ -88,14 +100,16 @@ public static class VirusTotal_API {
                     Stream resultStream = response.GetResponseStream();
                     StreamReader reader = new StreamReader(resultStream);
                     string resultString = reader.ReadToEnd();
-                    // Response structure: https://developers.virustotal.com/reference/url-object
+                    // Response structure for URLs: https://developers.virustotal.com/reference/url-object
+                    // Response structure for Files: https://developers.virustotal.com/reference/files
                     JObject jsonObject = (JObject)((JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("data")).GetValue("attributes");
                     JObject scanners_results = (JObject)jsonObject.GetValue("last_analysis_results");
+                    vt.NScanners = (short) scanners_results.Children().Count();
                     JObject total_votes = (JObject)jsonObject.GetValue("total_votes");
                     if (total_votes != null)
-                    {
-                        vt.NHarmless = (short)total_votes.GetValue("harmless");  // Positive votes
-                        vt.NMalicious = (short)total_votes.GetValue("malicious");  // Negative votes
+                    { 
+                        vt.NHarmless = (short)total_votes.GetValue("harmless");
+                        vt.NMalicious = (short)total_votes.GetValue("malicious");  
                     }
                     else { vt.SetToUnknown(); }
                 }

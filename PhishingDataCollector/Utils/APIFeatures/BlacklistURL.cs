@@ -58,7 +58,7 @@ public static class BlacklistURL_API {
         try {
             HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
             httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
-            using (HttpWebResponse response = (HttpWebResponse)await httpRequest.GetResponseAsync())
+            using (HttpWebResponse response = (HttpWebResponse) httpRequest.GetResponse())
             {
             if (response.StatusCode == HttpStatusCode.OK)
                 {

@@ -14,14 +14,14 @@ namespace PhishingDataCollector
         public string Body { get; set; }
         public string HTMLBody { get; set; }
         public string Sender { get; set; }
-        public string[] Attachments { get; set; }
+        public AttachmentData[] Attachments { get; set; }
         public string[] Headers { get; set; }
         public int Size { get; set; }
         public int NumRecipients { get; set; }
 
         public RawMail(string id, int size, string subject, 
             string body, string htmlBody, string sender, 
-            int numRecipients, string[] headers, string[] attachments ) 
+            int numRecipients, string[] headers, AttachmentData[] attachments ) 
         { 
             EntryID = id;
             Subject = subject;

@@ -51,7 +51,6 @@ namespace PhishingDataCollector
                     DomainName = HostName;
                 }
                 ProtocolDomainName = string.IsNullOrEmpty(Protocol) ? DomainName : Protocol + "://" + DomainName;
-
             }
         }
 
@@ -70,7 +69,6 @@ namespace PhishingDataCollector
             DNS_info_exists_binary = dnsInfo.GetFeatureDNSInfoExists();
 
             // Page Rank
-            
             PageRank pr = new PageRank(ProtocolDomainName);
             PageRank_API.PerformAPICall(pr);
             page_rank = pr.GetFeaturePageRank();
