@@ -29,6 +29,9 @@ namespace PhishingDataCollector
         public int n_slashes;
         public string TLD;
         public int url_length;
+        public int n_domains;
+        public float average_domain_token_length;
+        public int n_query_components;
 
         //Domain-based features
         public bool DNS_info_exists_binary;
@@ -84,6 +87,18 @@ namespace PhishingDataCollector
             TLD = _TLD;
             //Feature url_length
             url_length = _URL.Length;
+
+            //Feature average_domain_token_length
+            string[] temp = Regex.Match(_TLD, @"([\w\-_]+\.)+\w+", RegexOptions.IgnoreCase).Value.Split('.');
+            //Feature n_domains
+            n_domains = temp.Length;
+            foreach (string s in temp)
+            {
+                average_domain_token_length += s.Length;
+            }
+            average_domain_token_length = average_domain_token_length / n_domains;
+            //Feature n_query_components
+            n_query_components = Regex.Match(_URL, @"\?((\w+(=\w)*)+&?)+", RegexOptions.IgnoreCase).Value.Split('&').Length;
         }
 
         public void ComputeDomainFeatures()
