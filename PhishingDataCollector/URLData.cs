@@ -10,7 +10,7 @@ namespace PhishingDataCollector
         private string _URL;
         private string _TLD;
         private IPAddress _IP;
-
+        private string[] _TLDs = { ".com", ".org", ".edu", ".gov", ".uk", ".net", ".ca", ".de", ".jp", ".fr", ".au", ".us", "ru", ".ch", ".it", ".nl", "se", ".no", ".es", ".mil", ".info", ".tk", ".cn", "xyz", "top" };
         private VirusTotalScan VTScan { get; set; }
         private string HostName { get; }
         private string DomainName { get; }
@@ -32,6 +32,9 @@ namespace PhishingDataCollector
         public int n_domains;
         public float average_domain_token_length;
         public int n_query_components;
+        public bool domain_includes_dash;
+        public int hostname_length;
+        public int path_length;
 
         //Domain-based features
         public bool DNS_info_exists_binary;
@@ -89,7 +92,8 @@ namespace PhishingDataCollector
             url_length = _URL.Length;
 
             //Feature average_domain_token_length
-            string[] temp = Regex.Match(_TLD, @"([\w\-_]+\.)+\w+", RegexOptions.IgnoreCase).Value.Split('.');
+            string _domain = Regex.Match(_TLD, @"([\w\-_]+\.)+\w+", RegexOptions.IgnoreCase).Value;
+            string[] temp = _domain.Split('.');
             //Feature n_domains
             n_domains = temp.Length;
             foreach (string s in temp)
@@ -97,8 +101,15 @@ namespace PhishingDataCollector
                 average_domain_token_length += s.Length;
             }
             average_domain_token_length = average_domain_token_length / n_domains;
+            //Feature hostname_length
+            hostname_length = temp[0].Length;
+            //Feature domain_includes_dash
+            domain_includes_dash = Regex.Match(_domain, @"\w\-\w").Success;
+            //Feature path_length
+            path_length = _TLD.Length - _domain.Length - 1;
             //Feature n_query_components
             n_query_components = Regex.Match(_URL, @"\?((\w+(=\w)*)+&?)+", RegexOptions.IgnoreCase).Value.Split('&').Length;
+            //Feature 
         }
 
         public void ComputeDomainFeatures()
