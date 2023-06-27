@@ -35,7 +35,6 @@ namespace PhishingDataCollector
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-            //outputFile = Environment.GetEnvironmentVariable("DEBUG_OUTPUT_FILE");
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
@@ -68,7 +67,7 @@ namespace PhishingDataCollector
 
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            int test_limiter = 20;  // TEST ONLY: Limiter = 20 mails
+            int test_limiter = 99999;  // TEST ONLY: Limiter = 20 mails
             foreach (MailItem m in mailList.Concat(mailListJunk))  // See both inbox and junk emails
             {
                 // Checks that the mail has not already been computed previously
@@ -188,7 +187,8 @@ namespace PhishingDataCollector
             // Get attachments representation from MailItem (Hash)
             AttachmentData[] attachments;
             List<AttachmentData> attachments_list = new List<AttachmentData>();
-            foreach (Attachment att in mail.Attachments)
+            Attachment[] atts = mail.Attachments.Cast<Attachment>().ToArray();
+            foreach (Attachment att in atts) //mail.Attachments)
             {
                 AttachmentData att_data = AttachmentData.ExtractFeatures(att);
                 if (att_data != null)
@@ -211,34 +211,6 @@ namespace PhishingDataCollector
             return rawMail;
         }
 
-        /*
-        private static void WriteMailsToFile(string outputFile = null)
-        {
-            if (outputFile == null)
-            {
-                outputFile = Environment.GetEnvironmentVariable("OUTPUT_FILE");
-            }
-            var options = new JsonSerializerOptions
-            {
-                IncludeFields = true
-            };
-            using (StreamWriter writer = new StreamWriter(outputFile))
-            {
-                try
-                {
-                    string json = JsonSerializer.Serialize(MailList, options);
-                    //TODO: do not save the enitre MailData object, but just the features
-                    writer.WriteLine(json);
-                }
-                catch (ArgumentException err)
-                {
-                    Debug.WriteLine(MailList[0]);
-                    Debug.WriteLine(err);
-                }
-                writer.Close();
-            }
-        }*/
-
         private static void SaveMail(MailData mail, string outputFolder = null)
         {
             SaveMails(new MailData[1] { mail }, outputFolder);
@@ -251,14 +223,14 @@ namespace PhishingDataCollector
             {
                 outputFolder = Environment.GetEnvironmentVariable("OUTPUT_FOLDER");
             }
-            var options = new JsonSerializerOptions
-            {
-                IncludeFields = true
-            };
             if (!Directory.Exists(outputFolder))
             {
                 Directory.CreateDirectory(outputFolder);
             }
+            var options = new JsonSerializerOptions
+            {
+                IncludeFields = true
+            };
             foreach (MailData mail in mails)
             {
                 using (StreamWriter writer = new StreamWriter(Path.Combine(outputFolder, mail.GetID()+".json")))  //saves in folder/id.json

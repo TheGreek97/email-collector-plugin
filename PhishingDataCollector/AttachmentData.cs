@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -49,7 +50,7 @@ namespace PhishingDataCollector
         }
         public static AttachmentData ExtractFeatures (Attachment att) 
         {
-            string attachment_file_name = att.GetTemporaryFilePath();
+            string attachment_file_name = SaveAttachmentTemp(att);
             string file_sha;
             long file_size;
             try
@@ -60,15 +61,34 @@ namespace PhishingDataCollector
                     {
                         file_sha = Convert.ToBase64String(SHA256.ComputeHash(fileStream));
                         file_size = fileStream.Length;
+                        File.Delete(attachment_file_name);
                     }
                 }
             }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
+                Debug.WriteLine(e);
                 return null;
             }
             AttachmentData wrap = new AttachmentData(attachment_file_name, file_sha, file_size);
             return wrap;
+        }
+
+        private static string SaveAttachmentTemp (Attachment att)
+        {
+            string temp_folder = Environment.GetEnvironmentVariable("TEMP_FOLDER");
+            if (!Directory.Exists(temp_folder)) {
+                Directory.CreateDirectory(temp_folder);
+            }
+            string save_path = Path.Combine(temp_folder, att.FileName);
+            try
+            {
+                att.SaveAsFile(save_path);
+            } catch (System.Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+            return save_path;
         }
     }
 }
