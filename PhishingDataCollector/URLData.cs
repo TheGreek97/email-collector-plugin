@@ -11,10 +11,10 @@ namespace PhishingDataCollector
         private string _TLD;
         private IPAddress _IP;
 
-        public VirusTotalScan VTScan { get; set; }
-        public string HostName { get; }
-        public string DomainName { get; }
-        public string ProtocolDomainName { get; }
+        private VirusTotalScan VTScan { get; set; }
+        private string HostName { get; }
+        private string DomainName { get; }
+        private string ProtocolDomainName { get; }
         private string Protocol { get; }
         private string Port { get; }
 
@@ -113,6 +113,10 @@ namespace PhishingDataCollector
             
             return;
         }
+
+        public string GetHostName () { return HostName; }
+        public VirusTotalScan GetVTScan () { return VTScan; }
+        public void SetVTScan (VirusTotalScan vt) { VTScan = vt; }
 
         private void ComputeProtocolPortMatchFeature ()
         {

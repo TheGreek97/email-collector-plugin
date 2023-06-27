@@ -21,8 +21,8 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient();
 
         private static List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static string outputFile = @"output\test.txt";
-        private static bool executeInParallel = false;
+        private static bool executeInParallel = true;
+        //private static string outputFile = @"output\test.txt";
 
         private LaunchRibbon taskPaneControl;
 
@@ -32,19 +32,30 @@ namespace PhishingDataCollector
             string rootDir = Directory.GetParent(workingDir).Parent.FullName;
             var dotenv = Path.Combine(rootDir, ".env");
             DotEnv.Load(dotenv);
-            outputFile = Environment.GetEnvironmentVariable("DEBUG_OUTPUT_FILE");
-            //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+            //outputFile = Environment.GetEnvironmentVariable("DEBUG_OUTPUT_FILE");
+            //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
         }
 
-        public static async void ExecuteAddIn()
+        public static void ExecuteAddIn()
         {
-            
             var dispatcher = Dispatcher.CurrentDispatcher;
+            // Get the list of already processed emails (if the plugin was previously executed)
+            string[] ExistingEmails;
+            try
+            {
+                ExistingEmails = Directory.EnumerateFiles(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
+                    .Select(Path.GetFileNameWithoutExtension).ToArray();
+            }
+            catch (System.Exception ex)
+            {
+                ExistingEmails = new string[] { };
+                Debug.WriteLine(ex);
+            }
             // Get the mail list
             MAPIFolder inbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);  
             MAPIFolder junk = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk); 
@@ -54,16 +65,21 @@ namespace PhishingDataCollector
             "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione. " +
             "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");*/
 
+
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            foreach (MailItem m in mailList)
+            int test_limiter = 20;  // TEST ONLY: Limiter = 20 mails
+            foreach (MailItem m in mailList.Concat(mailListJunk))  // See both inbox and junk emails
             {
-                // TODO: Salva su file gli ID delle email già computate e, prima di ri-estrarre le feature, controlla che l'ID non sia presente su quel file    
-                if (k < 20)  // Limiter = 20 mails
+                // Checks that the mail has not already been computed previously
+                if (! ExistingEmails.Contains(m.EntryID))
                 {
-                    RawMail raw = ExtractRawDataFromMailItem(m);
-                    rawMailList.Add(raw);
-                    k++;
+                    if (k < test_limiter)  
+                    {
+                        RawMail raw = ExtractRawDataFromMailItem(m);
+                        rawMailList.Add(raw);
+                        k++;
+                    }
                 }
             }
             var cts = new CancellationTokenSource();
@@ -94,17 +110,17 @@ namespace PhishingDataCollector
                                 ContinueWith((prevTask) =>
                                 {
                                     MailList.Add(data);
-                                    Debug.WriteLine("Processed mail with ID: " + data.ID);
+                                    Debug.WriteLine("Processed mail with ID: " + data.GetID());
                                     Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                                    if (tot_n_mails - progress == 0)
+                                    /*if (tot_n_mails - progress == 0)
                                     {
                                         dispatcher.Invoke(() =>
                                         {
-                                            MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
-                                            WriteMailsToFile();
+                                            SaveMails(MailList.ToArray());
                                         });
-                                    }
+                                    }*/
                                     progress++;
+                                    SaveMail(data);
                                     return;
                                 });
                             }
@@ -116,17 +132,18 @@ namespace PhishingDataCollector
                         MailData data = new MailData(m);
                         data.ComputeFeatures();
                         MailList.Add(data);
-                        Debug.WriteLine("Processed mail with ID: " + data.ID);
+                        Debug.WriteLine("Processed mail with ID: " + data.GetID());
                         Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                        SaveMail(data);
                         progress++;
                     }
-                    MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
-                    WriteMailsToFile();
                 }
+                MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
             }
             catch (System.Exception e)
             {
                 Debug.WriteLine(e.Message);
+                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore:" +e.Message, "Phishing Mail Data Collector");
             }
             finally
             {
@@ -194,6 +211,7 @@ namespace PhishingDataCollector
             return rawMail;
         }
 
+        /*
         private static void WriteMailsToFile(string outputFile = null)
         {
             if (outputFile == null)
@@ -218,6 +236,44 @@ namespace PhishingDataCollector
                     Debug.WriteLine(err);
                 }
                 writer.Close();
+            }
+        }*/
+
+        private static void SaveMail(MailData mail, string outputFolder = null)
+        {
+            SaveMails(new MailData[1] { mail }, outputFolder);
+        }
+
+
+        private static void SaveMails(MailData[] mails, string outputFolder = null)
+        {
+            if (outputFolder == null)
+            {
+                outputFolder = Environment.GetEnvironmentVariable("OUTPUT_FOLDER");
+            }
+            var options = new JsonSerializerOptions
+            {
+                IncludeFields = true
+            };
+            if (!Directory.Exists(outputFolder))
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+            foreach (MailData mail in mails)
+            {
+                using (StreamWriter writer = new StreamWriter(Path.Combine(outputFolder, mail.GetID()+".json")))  //saves in folder/id.json
+                {
+                    try
+                    {
+                        string json = JsonSerializer.Serialize(mail, options);
+                        writer.WriteLine(json);
+                    }
+                    catch (ArgumentException err)
+                    {
+                        Debug.WriteLine(err);
+                    }
+                    writer.Close();
+                }
             }
         }
 

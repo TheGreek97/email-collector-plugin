@@ -292,6 +292,7 @@
     <None Include=".env" />
     <None Include=".env.example" />
     <None Include="app.config" />
+    <None Include="features.json" />
     <None Include="packages.config" />
     <None Include="PhishingDataCollector_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
@@ -330,11 +331,10 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>
-    </ManifestKeyFile>
+    <ManifestKeyFile>PhishingDataCollector_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>0E4CDB206E3C8E75E2DDD369C6F9F9AB3EA5B48F</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>BB0871BE161C2776957150D713199B1A7A537BA8</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

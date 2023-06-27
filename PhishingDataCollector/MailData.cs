@@ -10,8 +10,6 @@ namespace PhishingDataCollector
 {
     internal class MailData
     {
-        public string ID => _mailID;
-
         /* Features */
         // Header features
         public int n_recipients;
@@ -69,6 +67,8 @@ namespace PhishingDataCollector
         //public byte vt_a_protected;
 
         /* Private Fields */
+        private string ID => _mailID;
+
         private readonly int _mailSize, _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
@@ -114,7 +114,7 @@ namespace PhishingDataCollector
             _mailAttachments = attachments;
             _num_recipients = num_recipients;
         }
-
+        public string GetID() { return  _mailID; }
         public void ComputeFeatures ()
         {
             // Compute the email features
@@ -236,20 +236,20 @@ namespace PhishingDataCollector
                 if (!Regex.IsMatch(link, @"^(?:phone|mailto|tel|sms|callto):") && !string.IsNullOrEmpty(link))
                 {
                     URLData url = new URLData(link);
-                    VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.HostName);   // Checks if the link's hostname has already been analyzed
+                    VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.GetHostName());   // Checks if the link's hostname has already been analyzed
                     if (alreadyAnalyzed == null)
                     {
-                        VirusTotalScan link_scan = new VirusTotalScan(url.HostName);
+                        VirusTotalScan link_scan = new VirusTotalScan(url.GetHostName());
                         /*
                          * Disabled for testing 
                          * VirusTotal_API.PerformAPICall(link_scan);
                         */
                         VirusTotalScans.Add(link_scan);
-                        url.VTScan = link_scan;
+                        url.SetVTScan(link_scan);
                     }
                     else
                     {
-                        url.VTScan = alreadyAnalyzed;
+                        url.SetVTScan(alreadyAnalyzed);
                     }
                     urls_in_mail.Add(url);
                     if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
@@ -265,23 +265,24 @@ namespace PhishingDataCollector
             URLData secondCandidate = null;
             foreach (URLData _u in urls_in_mail)
             {
-                if (_u.VTScan.IsUnkown)
+                VirusTotalScan vt = _u.GetVTScan();
+                if (vt.IsUnkown)
                 {
                     vt_l_unknown++;
                     secondCandidate = _u;
                 }
                 else
                 {
-                    if (_u.VTScan.NMalicious == 0)
+                    if (vt.NMalicious == 0)
                     {
                         vt_l_clean++;
                     }
-                    else if (_u.VTScan.NMalicious > 0)
+                    else if (vt.NMalicious > 0)
                     {
                         vt_l_positives++;
-                        if (vt_l_maximum < _u.VTScan.NMalicious)
+                        if (vt_l_maximum < vt.NMalicious)
                         {
-                            vt_l_maximum = _u.VTScan.NMalicious;
+                            vt_l_maximum = vt.NMalicious;
                             MailURL = _u;  // Take _u as the most dangerous link
                         }
                     }
