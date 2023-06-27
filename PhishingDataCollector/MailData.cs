@@ -37,6 +37,7 @@ namespace PhishingDataCollector
         public int n_links;
         public int n_links_IP;
         public float cap_ratio;
+        public int n_links_ASCII;
 
         public bool binary_URL_bag_of_words;
 
@@ -191,6 +192,11 @@ namespace PhishingDataCollector
                 if (Regex.Match(m.Value, "href=([\"\'])(.*?)((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b)(.*?)([\"\'])").Success)
                 {
                     n_links_IP++;
+                }
+                //Feature n_links_ASCII
+                if (Regex.Match(m.Value, "[^[:ascii:]]").Success)
+                {
+                    n_links_ASCII++;
                 }
             }
             //Feature n_links
