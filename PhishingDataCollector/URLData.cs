@@ -1,4 +1,7 @@
-﻿using System.Net;
+﻿using edu.stanford.nlp.pipeline;
+using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -7,16 +10,16 @@ namespace PhishingDataCollector
 {
     internal class URLData
     {
-        private string _URL;
-        private string _TLD;
-        private IPAddress _IP;
-        private string[] _TLDs = { ".com", ".org", ".edu", ".gov", ".uk", ".net", ".ca", ".de", ".jp", ".fr", ".au", ".us", "ru", ".ch", ".it", ".nl", "se", ".no", ".es", ".mil", ".info", ".tk", ".cn", "xyz", "top" };
+        private readonly string _URL;
+        private readonly string _TLD;
+        private readonly IPAddress _IP;
+        private readonly string _hostName;
+        private readonly string _domainName;
+        private readonly string _protocolDomainName;
+        private readonly string _protocol;
+        private readonly string _port;
+        private readonly string[] _TLDs = { ".com", ".org", ".edu", ".gov", ".uk", ".net", ".ca", ".de", ".jp", ".fr", ".au", ".us", "ru", ".ch", ".it", ".nl", "se", ".no", ".es", ".mil", ".info", ".tk", ".cn", "xyz", "top" };
         private VirusTotalScan VTScan { get; set; }
-        private string HostName { get; }
-        private string DomainName { get; }
-        private string ProtocolDomainName { get; }
-        private string Protocol { get; }
-        private string Port { get; }
 
         //URL features
         public int n_dashes;
@@ -36,6 +39,9 @@ namespace PhishingDataCollector
         public int hostname_length;
         public int path_length;
 
+        public double entropy_chars_URL;
+        public double kullback_leibler_divergence;
+
         //Domain-based features
         public bool DNS_info_exists_binary;
         public int DNS_TTL;
@@ -52,19 +58,19 @@ namespace PhishingDataCollector
             uRL = Regex.Replace(uRL, @"[\\""']+", "");
             _URL = uRL;
             Match urlMatch = Regex.Match(uRL, @"^(?:(\w+):\/\/)?(?:[^@\/\n]+@)?((?:www\.)?[^:\/?\n]+)\:?(\d)*", RegexOptions.IgnoreCase);
-            Protocol = urlMatch.Groups[1].Value;  // the protocol can be http, https, ftp, etc.
-            HostName = urlMatch.Groups[2].Value; // Host name (e.g., "www.studenti.uniba.it")
-            Port = urlMatch.Groups[3].Value;  // Port (e.g., "8080")
+            _protocol = urlMatch.Groups[1].Value;  // the protocol can be http, https, ftp, etc.
+            _hostName = urlMatch.Groups[2].Value; // Host name (e.g., "www.studenti.uniba.it")
+            _port = urlMatch.Groups[3].Value;  // Port (e.g., "8080")
             
-            if (!string.IsNullOrEmpty(HostName))
+            if (!string.IsNullOrEmpty(_hostName))
             {
-                Match domainMatch = Regex.Match(HostName, @"\w+(\.\w+)$");  // Domain name (e.g., "uniba.it")
-                DomainName = domainMatch.Groups[0].Value;  // the full match
+                Match domainMatch = Regex.Match(_hostName, @"\w+(\.\w+)$");  // Domain name (e.g., "uniba.it")
+                _domainName = domainMatch.Groups[0].Value;  // the full match
                 _TLD = domainMatch.Groups[1].Value;
-                if (string.IsNullOrEmpty(DomainName)) {
-                    DomainName = HostName;
+                if (string.IsNullOrEmpty(_domainName)) {
+                    _domainName = _hostName;
                 }
-                ProtocolDomainName = string.IsNullOrEmpty(Protocol) ? DomainName : Protocol + "://" + DomainName;
+                _protocolDomainName = string.IsNullOrEmpty(_protocol) ? _domainName : _protocol + "://" + _domainName;
             }
         }
 
@@ -82,7 +88,7 @@ namespace PhishingDataCollector
             digit_letter_ratio = n_digits/ Regex.Matches(_URL, "[A-z]").Count;
 
             ComputeProtocolPortMatchFeature();
-            has_https = Regex.IsMatch(Protocol, "https", RegexOptions.IgnoreCase);
+            has_https = Regex.IsMatch(_protocol, "https", RegexOptions.IgnoreCase);
 
             //Fetaure n_slashes
             n_slashes = Regex.Matches(_URL, "/").Count;
@@ -109,25 +115,31 @@ namespace PhishingDataCollector
             path_length = _TLD.Length - _domain.Length - 1;
             //Feature n_query_components
             n_query_components = Regex.Match(_URL, @"\?((\w+(=\w)*)+&?)+", RegexOptions.IgnoreCase).Value.Split('&').Length;
-            //Feature 
+
+
+            // Feature entropy_chars_URL
+            ComputeEntropyCharsURLFeature();
+            // Feature kullback_leibler_divergence
+            ComputeKullbackLeiblerDivergenceFeature();
+
         }
 
         public void ComputeDomainFeatures()
         {
             // DNS Lookup
-            DNSInfo dnsInfo = new DNSInfo(DomainName);  // try to see if domain.com is needed instead of sub.domain.com
+            DNSInfo dnsInfo = new DNSInfo(_domainName);  // try to see if domain.com is needed instead of sub.domain.com
             DNSInfo_API.PerformAPICall(dnsInfo);
             DNS_TTL = dnsInfo.GetFeatureTTL();
             DNS_info_exists_binary = dnsInfo.GetFeatureDNSInfoExists();
 
             // Page Rank
-            PageRank pr = new PageRank(ProtocolDomainName);
+            PageRank pr = new PageRank(_protocolDomainName);
             PageRank_API.PerformAPICall(pr);
             page_rank = pr.GetFeaturePageRank();
             website_traffic = pr.GetFeatureWebsiteTraffic();
             
             // WhoIS Data
-            WhoIS whois = new WhoIS(DomainName);
+            WhoIS whois = new WhoIS(_domainName);
             WhoIS_API.PerformAPICall(whois);
             domain_creation_date = whois.GetFeatureCreationDate();
             domain_expiration_date = whois.GetFeatureExpirationDate();
@@ -140,55 +152,102 @@ namespace PhishingDataCollector
             return;
         }
 
-        public string GetHostName () { return HostName; }
+        public string GetHostName () { return _hostName; }
         public VirusTotalScan GetVTScan () { return VTScan; }
         public void SetVTScan (VirusTotalScan vt) { VTScan = vt; }
 
+        private void ComputeEntropyCharsURLFeature()
+        {
+            // Entropy H(X) = - \sum_{x \in X}(p(x)*logp(x))
+            Dictionary<char, int> charOccurences = new Dictionary<char, int>();
+            foreach (char c in _URL)
+            {
+                if (!charOccurences.ContainsKey(c)) { charOccurences[c] = 0; }
+                charOccurences[c] += 1;
+            }
+            entropy_chars_URL = 0;
+            foreach (char c in charOccurences.Keys)
+            {
+                double px = (double) charOccurences[c] / _URL.Length;  // p(x)
+                entropy_chars_URL += (px * Math.Log(px));
+            }
+            entropy_chars_URL = - entropy_chars_URL;
+        }
+        private void ComputeKullbackLeiblerDivergenceFeature()
+        {
+            // The relative entropy of characters in the URL and standard English character
+            Dictionary<char, float> letterFrequencyEnglish = new Dictionary<char, float>() {
+                { 'E', 12.0f } , { 'T' , 9.10f }, { 'A' , 8.12f }, { 'O' , 7.68f }, { 'I' , 7.31f }, { 'N' , 6.95f }, { 'S' , 6.28f },
+                { 'R' , 6.02f }, { 'H' , 5.92f }, { 'D' , 4.32f }, { 'L' , 3.98f }, { 'U' , 2.88f }, { 'C' , 2.71f }, { 'M' , 2.61f },
+                { 'F' , 2.30f }, { 'Y' , 2.11f }, { 'W' , 2.09f }, { 'G' , 2.03f }, { 'P' , 1.82f }, { 'B' , 1.49f }, { 'V' , 1.11f },
+                { 'K' , 0.69f }, { 'X' , 0.17f }, { 'Q' , 0.11f }, { 'J' , 0.10f }, { 'Z' , 0.07f }
+            };
+            // kullback_leibler_divergence -  DKL(P || Q) = \sum_{x \in X}p(x)*log{p(x)/q(x)}
+            int lettersInURL = 0;
+            Dictionary<char, int> charOccurences = new Dictionary<char, int>();
+
+            foreach (char c in _URL)
+            {
+                if (char.IsLetter(c))
+                {
+                    lettersInURL++;
+                    char letter = char.ToUpper(c);
+                    if (!charOccurences.ContainsKey(letter)) { charOccurences[letter] = 0; }
+                    charOccurences[letter]+=1;
+                }
+            }
+            kullback_leibler_divergence = 0;
+            foreach (char c in charOccurences.Keys)
+            {
+                double px = (float) charOccurences[c] / lettersInURL;  // p(x)
+                kullback_leibler_divergence += px * Math.Log (px/letterFrequencyEnglish[c]);  //p(x)*log(p(x)/q(x))
+            }
+        }
         private void ComputeProtocolPortMatchFeature ()
         {
             protocol_port_match_binary = true;
-            if (string.IsNullOrEmpty(Protocol))
+            if (string.IsNullOrEmpty(_protocol))
             {
                 return;
             }
-            if (Protocol == "http")
+            if (_protocol == "http")
             {
-                protocol_port_match_binary = string.IsNullOrEmpty(Port) || 
-                    Port == "80" || Port == "8000" || Port == "8080" || Port == "8081";
-            } else if (Protocol == "https")
+                protocol_port_match_binary = string.IsNullOrEmpty(_port) || 
+                    _port == "80" || _port == "8000" || _port == "8080" || _port == "8081";
+            } else if (_protocol == "https")
             {
-                protocol_port_match_binary = string.IsNullOrEmpty(Port) || Port == "443";
-            } else if (Protocol == "file" || Protocol == "mailto" || Protocol == "news" || 
-                Protocol == "sms" || Protocol == "callto" || Protocol == "tel")
+                protocol_port_match_binary = string.IsNullOrEmpty(_port) || _port == "443";
+            } else if (_protocol == "file" || _protocol == "mailto" || _protocol == "news" || 
+                _protocol == "sms" || _protocol == "callto" || _protocol == "tel")
             {
-                protocol_port_match_binary = string.IsNullOrEmpty(Port);
-            } else if (Protocol == "ftp")
+                protocol_port_match_binary = string.IsNullOrEmpty(_port);
+            } else if (_protocol == "ftp")
             {
-                protocol_port_match_binary = Port == "21";
+                protocol_port_match_binary = _port == "21";
             }
-            else if (Protocol == "ssh")
+            else if (_protocol == "ssh")
             {
-                protocol_port_match_binary = Port == "22";
+                protocol_port_match_binary = _port == "22";
             }
-            else if (Protocol == "telnet")
+            else if (_protocol == "telnet")
             {
-                protocol_port_match_binary = Port == "23";
+                protocol_port_match_binary = _port == "23";
             }
-            else if (Protocol == "gopher")
+            else if (_protocol == "gopher")
             {
-                protocol_port_match_binary = Port == "70";
+                protocol_port_match_binary = _port == "70";
             }
-            else if (Protocol == "rdp")  // Remote Desktop Protocol
+            else if (_protocol == "rdp")  // Remote Desktop Protocol
             {
-                protocol_port_match_binary = Port == "3389";
+                protocol_port_match_binary = _port == "3389";
             }
-            else if (Protocol == "ldap")  // Lightweight Directory Access Protocol
+            else if (_protocol == "ldap")  // Lightweight Directory Access Protocol
             {
-                protocol_port_match_binary = Port == "389";
+                protocol_port_match_binary = _port == "389";
             }
-            else if (Protocol == "nntp")  // Network News Transfer Protocol
+            else if (_protocol == "nntp")  // Network News Transfer Protocol
             {
-                protocol_port_match_binary = Port == "119";
+                protocol_port_match_binary = _port == "119";
             }
         }
     }

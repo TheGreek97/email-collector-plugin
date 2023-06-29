@@ -20,8 +20,8 @@ namespace PhishingDataCollector
     {
         public static HttpClient HTTPCLIENT = new HttpClient();
 
-        private static List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static bool executeInParallel = true;
+        private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
+        private static readonly bool _executeInParallel = false;
         //private static string outputFile = @"output\test.txt";
 
         private LaunchRibbon taskPaneControl;
@@ -93,7 +93,7 @@ namespace PhishingDataCollector
                 int progress = 1;
                 var batchSize = 5;
                 int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
-                if (executeInParallel)
+                if (_executeInParallel)
                 {
                     Parallel.For(0, numBatches, i =>
                     {

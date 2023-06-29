@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Policy;
 using System;
+using static System.Net.Mime.MediaTypeNames;
+using System.IO;
+using NHunspell;
 
 namespace PhishingDataCollector
 {
@@ -38,7 +41,8 @@ namespace PhishingDataCollector
         public int n_links_IP;
         public float cap_ratio;
         public int n_links_ASCII;
-
+        public int n_misspelled_words;
+        public string language;
         public bool binary_URL_bag_of_words;
 
         public float vt_l_rate;
@@ -74,7 +78,8 @@ namespace PhishingDataCollector
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
-        
+        private readonly string[] Languages = { "EN", "ES", "FR", "PT", "IT", "DE"};
+
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
         private Regex _url_address_regex = new Regex (@"(https?:\/\/|www\.)[-a-zA-Z0-9@:%._\-\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_+.~#?&\/=\-]*", RegexOptions.IgnoreCase);
@@ -139,13 +144,13 @@ namespace PhishingDataCollector
             ComputeLinkBodyFeatures();  // This also sets MailURL
 
             // -- URL features 
-            /* Disabled for testing
+            /* Disabled for testing */
             if (MailURL != null)
             {
                 MailURL.ComputeURLFeatures();
                 // ---- URL Domain features
-                MailURL.ComputeDomainFeatures();
-            }*/
+                //MailURL.ComputeDomainFeatures();
+            }
 
             // -- Attachment features
             ComputeAttachmentsFeatures();
@@ -204,6 +209,40 @@ namespace PhishingDataCollector
 
             //Feature cap_ratio
             cap_ratio = Regex.Matches(_plainTextBody, "[A-Z]").Count / Regex.Matches(_plainTextBody, "[a-z]").Count;
+
+            //Feature language
+            // TODO
+            language = "IT";  //test value
+            // Mapping : Italian => IT, German => DE, English => EN, Spanish => ES, French => FR, Portuguese => PT
+
+            // n_misspelled_words
+            n_misspelled_words = 0;
+            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w ]", " ");  //remove all non-words 
+            string dictPath = Environment.GetEnvironmentVariable("DICTIONARIES_PATH");
+            if (Languages.Contains(language))  // Loads additional dictionary
+            {
+                try
+                {
+                    dictPath = Path.Combine(dictPath, language);
+                } catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+            } else  // Default language is English
+            {
+                dictPath = Path.Combine(dictPath, "EN");
+            }
+            using (Hunspell spellChecker = new Hunspell(dictPath + ".aff", dictPath + ".dic"))
+            {
+                foreach (string word in wordsInBody.Split(' '))
+                {
+                    if (!string.IsNullOrEmpty(word) && !spellChecker.Spell(word))
+                    {
+                        n_misspelled_words++;
+                    }
+                }
+            }
+            
         }
 
         /**
