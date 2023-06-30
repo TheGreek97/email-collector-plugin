@@ -246,7 +246,7 @@ namespace PhishingDataCollector
             }
             else  // Default language is English
             {
-                dictPath = Path.Combine(dictPath, "EN");
+                dictPath = Path.Combine(dictPath, "en");
             }
 
             // n_misspelled_words, n_phishy, n_scammy
@@ -270,29 +270,38 @@ namespace PhishingDataCollector
             body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
 
             /*POS tagging*/
-            string base_path_pos_files = Environment.GetEnvironmentVariable("POSFILES_PATH");
-            string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
-            //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
-            EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
-            string[] pos_tags = posTagger.Tag(bodyTokens);
-            // pos tags are defined this way: https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
-            int n_adjectives=0, n_verbs=0, n_nouns=0, n_articles =0;
-            foreach (string tag in pos_tags)
+            if (language == "en")
             {
-                if (tag.StartsWith("J")) { n_adjectives++; }  // tag == JJ or JJR or JJS
-                else if (tag.StartsWith("VB")) { n_verbs++; }  // tag == VB or VBD or VBG or VBN or VBP or VBZ  
-                else if (tag.StartsWith("NN")) { n_nouns++; }  // tag == NN or NNS or NNP or NNPS
+                string base_path_pos_files = Environment.GetEnvironmentVariable("POSFILES_PATH");
+                string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
+                //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
+                EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
+                string[] pos_tags = posTagger.Tag(bodyTokens);
+                // pos tags are defined this way: https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
+                int n_adjectives=0, n_verbs=0, n_nouns=0, n_articles =0;
+                foreach (string tag in pos_tags)
+                {
+                    if (tag.StartsWith("J")) { n_adjectives++; }  // tag == JJ or JJR or JJS
+                    else if (tag.StartsWith("VB")) { n_verbs++; }  // tag == VB or VBD or VBG or VBN or VBP or VBZ  
+                    else if (tag.StartsWith("NN")) { n_nouns++; }  // tag == NN or NNS or NNP or NNPS
+                }
+                foreach (string word in bodyTokens)  // we don't have a tag for articles only
+                {
+                    string w  = word.ToLower();
+                    if (w == "the" || w == "a" || w == "an") { n_articles++; } 
+                }
+                int n_words = pos_tags.Length;
+                vdb_adjectives_rate = n_adjectives / n_words;
+                vdb_verbs_rate = n_verbs / n_words;
+                vdb_nouns_rate = n_nouns / n_words;
+                vdb_articles_rate = n_articles / n_words;
             }
-            foreach (string word in bodyTokens)
-            {
-                string w  = word.ToLower();
-                if (w == "the" || w == "a" || w == "an") { n_articles++; } 
+            else {
+                vdb_adjectives_rate = 0;
+                vdb_verbs_rate = 0;
+                vdb_nouns_rate = 0;
+                vdb_articles_rate = 0;
             }
-            int n_words = pos_tags.Length;
-            vdb_adjectives_rate = n_adjectives / n_words;
-            vdb_verbs_rate = n_verbs / n_words;
-            vdb_nouns_rate = n_nouns / n_words;
-            vdb_articles_rate = n_articles / n_words;
         }
 
         /**

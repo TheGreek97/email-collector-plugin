@@ -37,24 +37,15 @@ namespace PhishingDataCollector
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
-            ExecuteAddIn();
+            //ExecuteAddIn();
         }
 
-        public static void ExecuteAddIn()
+        public static async void ExecuteAddIn()
         {
             var dispatcher = Dispatcher.CurrentDispatcher;
             // Get the list of already processed emails (if the plugin was previously executed)
-            string[] ExistingEmails;
-            try
-            {
-                ExistingEmails = Directory.EnumerateFiles(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
-                    .Select(Path.GetFileNameWithoutExtension).ToArray();
-            }
-            catch (System.Exception ex)
-            {
-                ExistingEmails = new string[] { };
-                Debug.WriteLine(ex);
-            }
+            string[] ExistingEmails = GetExistingEmails();
+            
             // Get the mail list
             MAPIFolder inbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);  
             MAPIFolder junk = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk); 
@@ -137,8 +128,27 @@ namespace PhishingDataCollector
                         progress++;
                     }
                 }
-                MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
+                MessageBox.Show("Esportazione dei dati estratti dalle email completata! I dati saranno ora " +
+                    "mandati ai nostri server per scopi di ricerca e trattati ai sensi della GDPR. " +
+                    "Ti ricordiamo che i dati sono prodotti dalle email e sono completamente anonimi, " +
+                    "in quanto non è assolutamente possibile risalire al contenuto originale delle email o ai soggetti coinvolti.", "Phishing Mail Data Collector");
 
+                // Data trasmission over HTTPS: TODO
+                /*
+                try
+                {
+                    var fileUploader = new FileUploader();
+                    var url = "http://127.0.0.1/api/mailUpload";
+                    ExistingEmails = GetExistingEmails();
+
+                    await fileUploader.UploadFiles(url, ExistingEmails, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
+                        .ContinueWith(_ => {
+                        MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", "Phishing Mail Data Collector");
+                    });
+                } catch (System.Exception e)
+                {
+                    MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di provare a mandarli più tardi. Dettagli errore: "+ e.Message, "Phishing Mail Data Collector");
+                }*/
             }
             catch (System.Exception e)
             {
@@ -210,6 +220,22 @@ namespace PhishingDataCollector
                 headers: mail_headers,
                 attachments: attachments);
             return rawMail;
+        }
+
+        private static string[] GetExistingEmails ()
+        {
+            string[] email_names;
+            try
+            {
+                email_names = Directory.EnumerateFiles(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
+                    .Select(Path.GetFileNameWithoutExtension).ToArray();
+            }
+            catch (System.Exception ex)
+            {
+                email_names = new string[] { };
+                Debug.WriteLine(ex);
+            }
+            return email_names;
         }
 
         private static void SaveMail(MailData mail, string outputFolder = null)
