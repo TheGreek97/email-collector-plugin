@@ -9,9 +9,7 @@ using static System.Net.Mime.MediaTypeNames;
 using System.IO;
 using NHunspell;
 using Microsoft.Recognizers.Text;
-using edu.stanford.nlp.pipeline;
-using edu.stanford.nlp.util;
-using JProps = java.util.Properties;
+using OpenNLP.Tools.PosTagger;
 using LanguageDetection;
 
 namespace PhishingDataCollector
@@ -256,9 +254,10 @@ namespace PhishingDataCollector
             n_phishy = 0;
             n_scammy = 0;
             string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w $€£]", " ");  //remove all non-words (keeps currency symbols)
+            string[] bodyTokens = wordsInBody.Split(' ');
             using (Hunspell spellChecker = new Hunspell(dictPath + ".aff", dictPath + ".dic"))
             {
-                foreach (string word in wordsInBody.Split(' '))
+                foreach (string word in bodyTokens)
                 {
                     if (!string.IsNullOrEmpty(word))
                     {
@@ -270,18 +269,30 @@ namespace PhishingDataCollector
             }
             body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
 
-            /*POS tagging
-            JProps props = new JProps();
-            props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref");
-            StanfordCoreNLP stanfordPipeline = new StanfordCoreNLP(props);
-            Annotation stanfordNLPBody = new Annotation(_plainTextBody);
-            stanfordPipeline.annotate(stanfordNLPBody);*/
-            // TODO
-            // get num total words
-            // get num adjectives
-            // get num verbs
-            // get num nouns
-            // get num articles
+            /*POS tagging*/
+            string base_path_pos_files = Environment.GetEnvironmentVariable("POSFILES_PATH");
+            string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
+            //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
+            EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
+            string[] pos_tags = posTagger.Tag(bodyTokens);
+            // pos tags are defined this way: https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
+            int n_adjectives=0, n_verbs=0, n_nouns=0, n_articles =0;
+            foreach (string tag in pos_tags)
+            {
+                if (tag.StartsWith("J")) { n_adjectives++; }  // tag == JJ or JJR or JJS
+                else if (tag.StartsWith("VB")) { n_verbs++; }  // tag == VB or VBD or VBG or VBN or VBP or VBZ  
+                else if (tag.StartsWith("NN")) { n_nouns++; }  // tag == NN or NNS or NNP or NNPS
+            }
+            foreach (string word in bodyTokens)
+            {
+                string w  = word.ToLower();
+                if (w == "the" || w == "a" || w == "an") { n_articles++; } 
+            }
+            int n_words = pos_tags.Length;
+            vdb_adjectives_rate = n_adjectives / n_words;
+            vdb_verbs_rate = n_verbs / n_words;
+            vdb_nouns_rate = n_nouns / n_words;
+            vdb_articles_rate = n_articles / n_words;
         }
 
         /**

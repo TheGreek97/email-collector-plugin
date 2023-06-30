@@ -37,7 +37,7 @@ namespace PhishingDataCollector
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
-            //ExecuteAddIn();
+            ExecuteAddIn();
         }
 
         public static void ExecuteAddIn()
