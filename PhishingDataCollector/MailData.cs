@@ -8,6 +8,11 @@ using System;
 using static System.Net.Mime.MediaTypeNames;
 using System.IO;
 using NHunspell;
+using Microsoft.Recognizers.Text;
+using edu.stanford.nlp.pipeline;
+using edu.stanford.nlp.util;
+using JProps = java.util.Properties;
+using LanguageDetection;
 
 namespace PhishingDataCollector
 {
@@ -31,6 +36,7 @@ namespace PhishingDataCollector
         public int n_html_comments_tag;
         public int n_words_body;
         public int n_images;
+        public int body_size;
         public float proportion_words_no_vowels;
         public int n_href_tag;
         public int n_account_in_body;
@@ -41,9 +47,18 @@ namespace PhishingDataCollector
         public int n_links_IP;
         public float cap_ratio;
         public int n_links_ASCII;
-        public int n_misspelled_words;
-        public string language;
         public bool binary_URL_bag_of_words;
+
+        public string language;
+        public float voc_rate;
+        public float vdb_adjectives_rate;
+        public float vdb_verbs_rate;
+        public float vdb_nouns_rate;
+        public float vdb_articles_rate;
+        public int n_disguisy;
+        public int n_phishy;
+        public int n_scammy;
+        public int n_misspelled_words;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -78,7 +93,11 @@ namespace PhishingDataCollector
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
-        private readonly string[] Languages = { "EN", "ES", "FR", "PT", "IT", "DE"};
+        private readonly string[] _languages = { "en", "es", "fr", "pt", "it", "de"};
+        private readonly string[] _phishyWords = { "account", "security", "user", "verify", "service", "valid", "required", "credentials",
+            "attention", "request", "suspended", "company", "bank", "deposit", "post", "money", "bank", "update", "verify"};
+        private readonly string[] _scammyWords = { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
+            "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" };
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -211,38 +230,58 @@ namespace PhishingDataCollector
             cap_ratio = Regex.Matches(_plainTextBody, "[A-Z]").Count / Regex.Matches(_plainTextBody, "[a-z]").Count;
 
             //Feature language
-            // TODO
-            language = "IT";  //test value
-            // Mapping : Italian => IT, German => DE, English => EN, Spanish => ES, French => FR, Portuguese => PT
-
-            // n_misspelled_words
-            n_misspelled_words = 0;
-            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w ]", " ");  //remove all non-words 
+            //TODO
+            LanguageDetector detector = new LanguageDetector();
+            detector.AddAllLanguages();
+            language = detector.Detect(_plainTextBody);
             string dictPath = Environment.GetEnvironmentVariable("DICTIONARIES_PATH");
-            if (Languages.Contains(language))  // Loads additional dictionary
+            if (_languages.Contains(language))  // Loads additional dictionary
             {
                 try
                 {
                     dictPath = Path.Combine(dictPath, language);
-                } catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     Debug.WriteLine(e);
                 }
-            } else  // Default language is English
+            }
+            else  // Default language is English
             {
                 dictPath = Path.Combine(dictPath, "EN");
             }
+
+            // n_misspelled_words, n_phishy, n_scammy
+            n_misspelled_words = 0;
+            n_phishy = 0;
+            n_scammy = 0;
+            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w $€£]", " ");  //remove all non-words (keeps currency symbols)
             using (Hunspell spellChecker = new Hunspell(dictPath + ".aff", dictPath + ".dic"))
             {
                 foreach (string word in wordsInBody.Split(' '))
                 {
-                    if (!string.IsNullOrEmpty(word) && !spellChecker.Spell(word))
+                    if (!string.IsNullOrEmpty(word))
                     {
-                        n_misspelled_words++;
+                        if (!spellChecker.Spell(word)) { n_misspelled_words++; }
+                        if (_phishyWords.Contains(word)) { n_phishy++; }
+                        if (_scammyWords.Contains(word)) { n_scammy++; }
                     }
                 }
             }
-            
+            body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
+
+            /*POS tagging
+            JProps props = new JProps();
+            props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref");
+            StanfordCoreNLP stanfordPipeline = new StanfordCoreNLP(props);
+            Annotation stanfordNLPBody = new Annotation(_plainTextBody);
+            stanfordPipeline.annotate(stanfordNLPBody);*/
+            // TODO
+            // get num total words
+            // get num adjectives
+            // get num verbs
+            // get num nouns
+            // get num articles
         }
 
         /**

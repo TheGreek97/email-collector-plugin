@@ -138,6 +138,7 @@ namespace PhishingDataCollector
                     }
                 }
                 MessageBox.Show("Esportazione dei dati completata! Grazie", "Phishing Mail Data Collector");
+
             }
             catch (System.Exception e)
             {

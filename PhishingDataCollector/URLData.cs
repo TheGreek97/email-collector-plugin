@@ -121,7 +121,6 @@ namespace PhishingDataCollector
             ComputeEntropyCharsURLFeature();
             // Feature kullback_leibler_divergence
             ComputeKullbackLeiblerDivergenceFeature();
-
         }
 
         public void ComputeDomainFeatures()
@@ -185,7 +184,6 @@ namespace PhishingDataCollector
             // kullback_leibler_divergence -  DKL(P || Q) = \sum_{x \in X}p(x)*log{p(x)/q(x)}
             int lettersInURL = 0;
             Dictionary<char, int> charOccurences = new Dictionary<char, int>();
-
             foreach (char c in _URL)
             {
                 if (char.IsLetter(c))
