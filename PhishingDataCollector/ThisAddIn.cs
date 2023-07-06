@@ -13,12 +13,13 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
 using System.Security.Cryptography;
+using javax.crypto;
 
 namespace PhishingDataCollector
 {
     public partial class ThisAddIn
     {
-        public static HttpClient HTTPCLIENT = new HttpClient();
+        public static System.Net.Http.HttpClient HTTPCLIENT = new System.Net.Http.HttpClient();
 
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
@@ -130,29 +131,40 @@ namespace PhishingDataCollector
                 }
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata! I dati saranno ora " +
                     "mandati ai nostri server per scopi di ricerca e trattati ai sensi della GDPR. " +
-                    "Ti ricordiamo che i dati sono prodotti dalle email e sono completamente anonimi, " +
-                    "in quanto non è assolutamente possibile risalire al contenuto originale delle email o ai soggetti coinvolti.", "Phishing Mail Data Collector");
+                    "I dati raccolti risultano da un processo di elaborazione delle email della tua casella di posta e sono completamente anonimi, " +
+                    "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
+                    "Phishing Mail Data Collector");
 
                 // Data trasmission over HTTPS: TODO
-                /*
-                try
-                {
-                    var fileUploader = new FileUploader();
-                    var url = "http://127.0.0.1/api/mailUpload";
+                try { 
+                    var url = "http://127.0.0.1:8000/api/mail";
                     ExistingEmails = GetExistingEmails();
-
-                    await fileUploader.UploadFiles(url, ExistingEmails, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
+                    /*
+                     var _httpClient = new System.Net.Http.HttpClient();
+                    var formData = new MultipartFormDataContent();
+                    string emailToSend = ExistingEmails.First() + ".json";
+                    string filePath = Path.Combine(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), emailToSend);
+                    var fileContent = new StreamContent(File.OpenRead(filePath));
+                    formData.Add(fileContent, "mail", "mail1.json");
+                    var response = await _httpClient.PostAsync(url, formData);
+                    Debug.WriteLine(response.StatusCode);
+                    formData.Dispose();
+                    */
+                    //MessageBox.Show("Upload dei dati iniziato.");
+                    await FileUploader.UploadFiles(url, ExistingEmails, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
                         .ContinueWith(_ => {
-                        MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", "Phishing Mail Data Collector");
+                        //MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", "Phishing Mail Data Collector");
                     });
                 } catch (System.Exception e)
                 {
                     MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di provare a mandarli più tardi. Dettagli errore: "+ e.Message, "Phishing Mail Data Collector");
-                }*/
+                }
             }
             catch (System.Exception e)
             {
-                Debug.WriteLine(e.Message);
+                Debug.WriteLine("Errore esterno:");
+                Debug.WriteLine(e);
+                Debug.WriteLine(e.StackTrace);
                 MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore:" +e.Message, "Phishing Mail Data Collector");
             }
             finally
