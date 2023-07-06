@@ -23,10 +23,11 @@ public static class FileUploader
         
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
 
-        // Split the email list in multiple requests of N mails (e.g., 500)
+        // Split the email list in multiple requests of N mails (e.g., 20)
         List<string[]> chunks = new List<string[]>();
-        int chunkSize = 500;
-        for (int i = 0; i < fileNames.Length; i += chunkSize)
+        int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
+        int testSize = 10;  // fileNames.Length;
+        for (int i = 0; i < testSize; i += chunkSize)  
         {
             int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
             string[] chunk = new string[chunkLength];
@@ -34,17 +35,17 @@ public static class FileUploader
             chunks.Add(chunk);
         }
 
-        foreach (var chunk in chunks)
+        Parallel.ForEach(chunks, async (chunk) =>
         {
             using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
             {
                 try
                 {
-                    foreach (string fileName in fileNames.Take(3))
+                    foreach (string fileName in chunk)
                     {
                         string filePath = Path.Combine(folderName, fileName + fileExt);
                         var fileContent = new StreamContent(File.OpenRead(filePath));
-                        formData.Add(fileContent, "files", Path.GetFileName(filePath));
+                        formData.Add(fileContent, fileName, Path.GetFileName(filePath));
                     }
                     //formData.Headers.TryAddWithoutValidation("Content-Type", "multipart/form-data; boundary="+g);
 
@@ -54,10 +55,10 @@ public static class FileUploader
                 catch (Exception ex)
                 {
                     Debug.WriteLine("Error while uploading the file");
-                    Debug.WriteLine("From mail " + chunk[0]+ " To mail " + chunk[chunk.Length-1]);
+                    Debug.WriteLine("From mail " + chunk[0] + " To mail " + chunk[chunk.Length - 1]);
                     Debug.WriteLine(ex);
                 }
             }
-        }
+        });
     }
 }
