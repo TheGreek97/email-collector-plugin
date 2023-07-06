@@ -7,13 +7,14 @@ using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
 
 public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
 
-    public static async Task UploadFiles(string url, string[] fileNames, string folderName=".\\", string fileExt = ".json")
+    public static async Task<bool> UploadFiles(string url, string[] fileNames, string folderName=".\\", string fileExt = ".json")
     {
         if (_httpClient == null)
         {
@@ -26,7 +27,7 @@ public static class FileUploader
         // Split the email list in multiple requests of N mails (e.g., 20)
         List<string[]> chunks = new List<string[]>();
         int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
-        int testSize = 10;  // fileNames.Length;
+        int testSize = fileNames.Length;
         for (int i = 0; i < testSize; i += chunkSize)  
         {
             int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
@@ -34,8 +35,14 @@ public static class FileUploader
             Array.Copy(fileNames, i, chunk, 0, chunkLength);
             chunks.Add(chunk);
         }
-
-        Parallel.ForEach(chunks, async (chunk) =>
+        bool errors = false;
+        var cts = new CancellationTokenSource();
+        var po = new ParallelOptions
+        {
+            CancellationToken = cts.Token,
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        };
+        Parallel.ForEach(chunks, po, async (chunk) =>
         {
             using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
             {
@@ -57,8 +64,11 @@ public static class FileUploader
                     Debug.WriteLine("Error while uploading the file");
                     Debug.WriteLine("From mail " + chunk[0] + " To mail " + chunk[chunk.Length - 1]);
                     Debug.WriteLine(ex);
+                    errors = true;
                 }
             }
         });
+        Task.WaitAll();
+        return !errors;  // returns true if there was no error
     }
 }

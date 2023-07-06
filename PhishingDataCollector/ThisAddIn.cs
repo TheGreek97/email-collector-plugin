@@ -23,6 +23,7 @@ namespace PhishingDataCollector
 
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
+        private static readonly string AppName = "Phishing Mail Data Collector";
         //private static string outputFile = @"output\test.txt";
 
         private LaunchRibbon taskPaneControl;
@@ -130,34 +131,28 @@ namespace PhishingDataCollector
                     }
                 }
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata! I dati saranno ora " +
-                    "mandati ai nostri server per scopi di ricerca e trattati ai sensi della GDPR. " +
+                    "mandati ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n " +
                     "I dati raccolti risultano da un processo di elaborazione delle email della tua casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
-                    "Phishing Mail Data Collector");
+                    AppName);
 
-                // Data trasmission over HTTPS: TODO
+                // Data trasmission over HTTPS
                 try { 
                     var url = "http://127.0.0.1:8000/api/mail";
                     ExistingEmails = GetExistingEmails();
-                    /*
-                     var _httpClient = new System.Net.Http.HttpClient();
-                    var formData = new MultipartFormDataContent();
-                    string emailToSend = ExistingEmails.First() + ".json";
-                    string filePath = Path.Combine(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), emailToSend);
-                    var fileContent = new StreamContent(File.OpenRead(filePath));
-                    formData.Add(fileContent, "mail", "mail1.json");
-                    var response = await _httpClient.PostAsync(url, formData);
-                    Debug.WriteLine(response.StatusCode);
-                    formData.Dispose();
-                    */
-                    //MessageBox.Show("Upload dei dati iniziato.");
+                    MessageBox.Show("Upload dei dati iniziato.", "Phishing Mail ");
                     await FileUploader.UploadFiles(url, ExistingEmails, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
-                        .ContinueWith(_ => {
-                        //MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", "Phishing Mail Data Collector");
-                    });
+                        .ContinueWith(task => {
+                            if (task.IsCompleted) {  // FIXME: stampa sempre un messaggio di successo, nonostante le eccezioni lanciate in UploadFiles()
+                                MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", AppName);
+                            } else
+                            {
+                                MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
+                            }
+                        });
                 } catch (System.Exception e)
                 {
-                    MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di provare a mandarli più tardi. Dettagli errore: "+ e.Message, "Phishing Mail Data Collector");
+                    MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare. Dettagli errore: "+ e.Message, AppName);
                 }
             }
             catch (System.Exception e)
@@ -165,7 +160,7 @@ namespace PhishingDataCollector
                 Debug.WriteLine("Errore esterno:");
                 Debug.WriteLine(e);
                 Debug.WriteLine(e.StackTrace);
-                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore:" +e.Message, "Phishing Mail Data Collector");
+                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore:" +e.Message, AppName);
             }
             finally
             {
