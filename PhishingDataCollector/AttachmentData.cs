@@ -60,9 +60,9 @@ namespace PhishingDataCollector
                     using (FileStream fileStream = File.OpenRead(attachment_file_name))
                     {
                         file_sha = Convert.ToBase64String(SHA256.ComputeHash(fileStream));
-                        file_size = fileStream.Length;
-                        File.Delete(attachment_file_name);
+                        file_size = fileStream.Length; 
                     }
+                    File.Delete(attachment_file_name);
                 }
             }
             catch (System.Exception e)

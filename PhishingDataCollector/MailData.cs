@@ -49,6 +49,7 @@ namespace PhishingDataCollector
 
         public string language;
         public float voc_rate;
+        public float vdb_rate;
         public float vdb_adjectives_rate;
         public float vdb_verbs_rate;
         public float vdb_nouns_rate;
@@ -253,7 +254,7 @@ namespace PhishingDataCollector
             n_misspelled_words = 0;
             n_phishy = 0;
             n_scammy = 0;
-            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w $€£]", " ");  //remove all non-words (keeps currency symbols)
+            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w $€£]", " ");  // remove all non-words (keeps currency symbols)
             string[] bodyTokens = wordsInBody.Split(' ');
             using (Hunspell spellChecker = new Hunspell(dictPath + ".aff", dictPath + ".dic"))
             {
@@ -285,7 +286,7 @@ namespace PhishingDataCollector
                     else if (tag.StartsWith("VB")) { n_verbs++; }  // tag == VB or VBD or VBG or VBN or VBP or VBZ  
                     else if (tag.StartsWith("NN")) { n_nouns++; }  // tag == NN or NNS or NNP or NNPS
                 }
-                foreach (string word in bodyTokens)  // we don't have a tag for articles only
+                foreach (string word in bodyTokens)  // we don't have a tag for only articles
                 {
                     string w  = word.ToLower();
                     if (w == "the" || w == "a" || w == "an") { n_articles++; } 
@@ -295,8 +296,28 @@ namespace PhishingDataCollector
                 vdb_verbs_rate = n_verbs / n_words;
                 vdb_nouns_rate = n_nouns / n_words;
                 vdb_articles_rate = n_articles / n_words;
+
+                // Rateos of words in basic and full vocabulary
+                string base_path_wordlists = Environment.GetEnvironmentVariable("WORDLIST_PATH");
+                string basic_dict_path = Path.Combine(base_path_wordlists, "en_basic.txt");
+                //string full_dict_path = Path.Combine(base_path_wordlists, "en_full.txt");
+                //string[] full_dict = File.ReadAllLines(full_dict_path);
+                //int voc_words = 0;
+                
+                string[] basic_dict = File.ReadAllLines(basic_dict_path);
+                int n_basic_voc_words = 0;
+
+                foreach (string word in bodyTokens)
+                {
+                    if (basic_dict.Contains(word)) { n_basic_voc_words++; }
+                    //if (full_dict.Contains(word)) { voc_words++; }
+                }
+                voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
+                vdb_rate = (float) n_basic_voc_words / n_words;
             }
             else {
+                voc_rate = 0;
+                vdb_rate = 0;
                 vdb_adjectives_rate = 0;
                 vdb_verbs_rate = 0;
                 vdb_nouns_rate = 0;

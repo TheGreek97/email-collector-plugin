@@ -182,7 +182,7 @@ namespace PhishingDataCollector
                 headers.Add(header_rows[0]);  // First one is already complete
                 for (int i = 1; i < header_rows.Length - 1; i += 2)
                 {
-                    // Subsequent ones are pairs to be joined together: 
+                    // Subsequent ones are pairs to be joined together. Example:
                     // header_rows[1] = "R", header_rows[2] = "eceived: xxx@outlook.com",
                     // header_rows[3] = "F", header_rows[4] = "rom: example@mail.com"...
                     headers.Add(header_rows[i] + header_rows[i + 1]);
