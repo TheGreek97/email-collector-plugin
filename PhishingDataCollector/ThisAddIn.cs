@@ -60,7 +60,7 @@ namespace PhishingDataCollector
 
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            int test_limiter = 99999;  // TEST ONLY: Limiter = 20 mails
+            int test_limiter = 10;  // TEST ONLY: Limiter = 20 mails
             foreach (MailItem m in mailList.Concat(mailListJunk))  // See both inbox and junk emails
             {
                 // Checks that the mail has not already been computed previously
@@ -140,8 +140,8 @@ namespace PhishingDataCollector
                 try { 
                     var url = "http://127.0.0.1:8000/api/mail";
                     ExistingEmails = GetExistingEmails();
-                    MessageBox.Show("Upload dei dati iniziato.", "Phishing Mail ");
-                    await FileUploader.UploadFiles(url, ExistingEmails, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
+                    MessageBox.Show("Upload dei dati iniziato.", AppName);
+                    await FileUploader.UploadFiles(url, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
                         .ContinueWith(task => {
                             if (task.IsCompleted) {  // FIXME: stampa sempre un messaggio di successo, nonostante le eccezioni lanciate in UploadFiles()
                                 MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", AppName);

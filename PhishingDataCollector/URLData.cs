@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Office.Interop.Outlook;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -19,7 +20,14 @@ namespace PhishingDataCollector
         private readonly string _path;  // URL path (e.g., /segreteria/libretto?q=123&p=true)
         private readonly string[] _comTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
             ".au", ".us", ".ru", ".ch", ".it", ".nl", ".se", ".no", ".es", ".mil", ".info", ".tk", ".cn", ".xyz", ".top" };  // most common top-level domains
+        private readonly string[] _sensitiveWords = { "secure", "account", "webscr", "login", "ebayisapi", "signin", "banking", "confirm"};
         private VirusTotalScan VTScan { get; set; }
+        private Dictionary<char, float> _letterFrequencyEnglish = new Dictionary<char, float>() {
+            { 'E', 0.12f } , { 'T' , 0.091f }, { 'A' , 0.0812f }, { 'O' , 0.0768f }, { 'I' , 0.0731f }, { 'N' , 0.0695f }, { 'S' , 0.0628f },
+            { 'R' , 0.0602f }, { 'H' , 0.0592f }, { 'D' , 0.0432f }, { 'L' , 0.0398f }, { 'U' , 0.0288f }, { 'C' , 0.0271f }, { 'M' , 0.0261f },
+            { 'F' , 0.0230f }, { 'Y' , 0.0211f }, { 'W' , 0.0209f }, { 'G' , 0.0203f }, { 'P' , 0.0182f }, { 'B' , 0.0149f }, { 'V' , 0.0111f },
+            { 'K' , 0.0069f }, { 'X' , 0.0017f }, { 'Q' , 0.0011f }, { 'J' , 0.0010f }, { 'Z' , 0.0007f }
+        };  // contains the frequencies of the letters in the English language
 
         //URL features
         public int n_dashes;
@@ -35,6 +43,9 @@ namespace PhishingDataCollector
         public int n_domains;
         public float average_domain_token_length;
         public int n_query_components;
+        public short n_sensitive_words;
+        public float url_char_distance_w;
+        public float url_char_distance_r;
         public bool domain_includes_dash;
         public int hostname_length;
         public int path_length;
@@ -42,6 +53,7 @@ namespace PhishingDataCollector
         public bool domain_in_path;
         public double entropy_chars_URL;
         public double kullback_leibler_divergence;
+        public double euclidean_distance;
         public double entropy_nan_chars_URL;
 
         //Domain-based features
@@ -110,6 +122,17 @@ namespace PhishingDataCollector
                 average_domain_token_length += s.Length;
             }
             average_domain_token_length = average_domain_token_length / n_domains;
+            // Feature n_sensitive_words
+            n_sensitive_words = 0;
+            foreach (string word in _sensitiveWords)
+            {
+                n_sensitive_words += (short) Regex.Matches(_URL, word).Count;
+            }
+            // Feature url_char_distance_w
+            url_char_distance_w = ((float)_URL.Split(new char[]{ 'w', 'W' }).Length / _URL.Length) - _letterFrequencyEnglish['W'];  // frequency of w in the URL - frequency of w in the English language
+            // Feature url_char_distance_r
+            url_char_distance_w = ((float)_URL.Split(new char[] { 'r', 'R' }).Length / _URL.Length) - _letterFrequencyEnglish['R'];  // frequency of r in the URL - frequency of r in the English language
+
             // Feature hostname_length
             hostname_length = temp[0].Length;
             // Feature domain_includes_dash
@@ -124,8 +147,8 @@ namespace PhishingDataCollector
             ComputeDomainInPathFeature();
             // Feature entropy_chars_URL
             ComputeEntropyCharsURLFeature();
-            // Feature kullback_leibler_divergence
-            ComputeKullbackLeiblerDivergenceFeature();
+            // Features: kullback_leibler_divergence + euclidean_distance
+            ComputeDistanceFeatures();
             // Feature entropy_NAN_chars_URL
             ComputeEntropyNANCharsURLFeature();
         }
@@ -198,16 +221,11 @@ namespace PhishingDataCollector
             }
             entropy_nan_chars_URL = -cum_sum;
         }
-        private void ComputeKullbackLeiblerDivergenceFeature()
+        private void ComputeDistanceFeatures()
         {
             // The relative entropy of characters in the URL and standard English character
-            Dictionary<char, float> letterFrequencyEnglish = new Dictionary<char, float>() {
-                { 'E', 12.0f } , { 'T' , 9.10f }, { 'A' , 8.12f }, { 'O' , 7.68f }, { 'I' , 7.31f }, { 'N' , 6.95f }, { 'S' , 6.28f },
-                { 'R' , 6.02f }, { 'H' , 5.92f }, { 'D' , 4.32f }, { 'L' , 3.98f }, { 'U' , 2.88f }, { 'C' , 2.71f }, { 'M' , 2.61f },
-                { 'F' , 2.30f }, { 'Y' , 2.11f }, { 'W' , 2.09f }, { 'G' , 2.03f }, { 'P' , 1.82f }, { 'B' , 1.49f }, { 'V' , 1.11f },
-                { 'K' , 0.69f }, { 'X' , 0.17f }, { 'Q' , 0.11f }, { 'J' , 0.10f }, { 'Z' , 0.07f }
-            };
-            // kullback_leibler_divergence -  DKL(P || Q) = \sum_{x \in X}p(x)*log{p(x)/q(x)}
+            // kullback_leibler_divergence: DKL(P || Q) = \sum_{x \in X}p(x)*log{p(x)/q(x)}
+            // euclidean_distance: D (p,q) = \sqrt( \sum_{x \in X}(p(x)-q(x))^2 )
             int lettersInURL = 0;
             Dictionary<char, int> charOccurences = new Dictionary<char, int>();
             foreach (char c in _URL)
@@ -221,11 +239,14 @@ namespace PhishingDataCollector
                 }
             }
             kullback_leibler_divergence = 0;
+            euclidean_distance = 0;
             foreach (char c in charOccurences.Keys)
             {
-                double px = (float)charOccurences[c] / lettersInURL;  // p(x)
-                kullback_leibler_divergence += px * Math.Log(px / letterFrequencyEnglish[c]);  //p(x)*log(p(x)/q(x))
+                var px = (double)charOccurences[c] / lettersInURL;  // p(x)
+                kullback_leibler_divergence += px * Math.Log(px / _letterFrequencyEnglish[c]);  // p(x)*log(p(x)/q(x))
+                euclidean_distance += Math.Pow(px - _letterFrequencyEnglish[c], 2); // (p(x) - q(x))^2
             }
+            euclidean_distance = Math.Sqrt(euclidean_distance);
         }
         private void ComputeProtocolPortMatchFeature()
         {
