@@ -10,20 +10,20 @@ using System.Collections.Generic;
 using System.Threading;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 using System.Runtime.Serialization.Formatters.Binary;
+using Dasync.Collections;
+using System.Collections.Concurrent;
 
 public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
 
-    public static async Task UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = ".json")
+    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = ".json")
     {
         if (_httpClient == null)
         {
             _httpClient = new HttpClient();
         }
-        _httpClient.Timeout = TimeSpan.FromSeconds(10);
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);  // Add the authentication token
         
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
 
@@ -43,51 +43,47 @@ public static class FileUploader
             CancellationToken = cts.Token,
             MaxDegreeOfParallelism = Environment.ProcessorCount
         };
+        bool errors = false;
         try
         {
-            Parallel.ForEach(chunks, po, async (chunk) =>
+            // Add Headers for HTTP requests
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);  // Add the authorization token
+            _httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+            var bag = new ConcurrentBag<object>();
+            await chunks.ParallelForEachAsync(async mailChunk =>
             {
-                _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-                cts.Token.ThrowIfCancellationRequested();
+                // Build the request body
                 using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
                 {
-                    foreach (string fileName in chunk)
+                    foreach (string fileName in mailChunk)
                     {
                         string filePath = Path.Combine(folderName, fileName + fileExt);
                         var fileContent = new StreamContent(File.OpenRead(filePath));
                         formData.Add(fileContent, fileName, Path.GetFileName(filePath));
                     }
-                    //formData.Headers.TryAddWithoutValidation("Content-Type", "multipart/form-data; boundary="+g);
-                    try
-                    {
-                        /* Calculate object size
-                        long content_length;
-                        using (Stream s = new MemoryStream())
-                        {
-                            BinaryFormatter formatter = new BinaryFormatter();
-                            formatter.Serialize(s, formData);
-                            content_length = s.Length;
-                        }*/
-                        //_httpClient.DefaultRequestHeaders.Add(@"Content-Length", content_length.ToString());
-                        var response = await _httpClient.PostAsync(url, formData);
-                        Debug.WriteLine(response.StatusCode);
-                    } catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex.ToString());
-                    }
+
+                    var response = await _httpClient.PostAsync(url, formData);
+
+                    bag.Add(response);
+                    Debug.WriteLine(response.StatusCode);
                 }
-            });
+            }, maxDegreeOfParallelism: 10);
+            var count = bag.Count;
+
         }
         catch (Exception ex)
         {
             Debug.WriteLine("Error while uploading the files");
             Debug.WriteLine(ex);
             cts.Cancel();
+            errors = true;
         }
         finally
         {
             cts.Dispose();
         }
-        return;  // returns true if there was no error
+        return !errors;
     }
 }

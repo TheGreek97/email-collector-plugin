@@ -57,7 +57,6 @@ namespace PhishingDataCollector
             "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione. " +
             "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");*/
 
-
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
             int test_limiter = 10;  // TEST ONLY: Limiter = 20 mails
@@ -141,15 +140,14 @@ namespace PhishingDataCollector
                     var url = "http://127.0.0.1:8000/api/mail";
                     ExistingEmails = GetExistingEmails();
                     MessageBox.Show("Upload dei dati iniziato.", AppName);
-                    await FileUploader.UploadFiles(url, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
-                        .ContinueWith(task => {
-                            if (task.IsCompleted) {  // FIXME: stampa sempre un messaggio di successo, nonostante le eccezioni lanciate in UploadFiles()
-                                MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", AppName);
-                            } else
-                            {
-                                MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
-                            }
-                        });
+                    bool result = await FileUploader.UploadFiles(url, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"));
+                    if (result)
+                    {
+                        MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", AppName);
+                    } else
+                    {
+                        MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
+                    }
                 } catch (System.Exception e)
                 {
                     MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare. Dettagli errore: "+ e.Message, AppName);

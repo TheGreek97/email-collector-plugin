@@ -433,15 +433,25 @@ namespace PhishingDataCollector
 
         private void ComputeSubjectFeatures() 
         {
-            n_words_subject = Regex.Split(_mailSubject, @"\b\s").Length; // @"[\s[:punct:]]+").Length;
-            n_char_subject = _mailSubject.Length;
-            is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
-            if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
-            { 
-                is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte) 3 : (sbyte) 2; // 3 = re+fwd, 2 = fwd
+            if (! string.IsNullOrEmpty(_mailSubject))
+            {
+                n_words_subject = Regex.Split(_mailSubject, @"\b\s").Length; // @"[\s[:punct:]]+").Length;
+                n_char_subject = _mailSubject.Length;
+                is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
+                if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)3 : (sbyte)2; // 3 = re+fwd, 2 = fwd
+                }
+                else
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)1 : (sbyte)0; // 1 = re, 0 = none
+                }
             } else
             {
-                is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte) 1 : (sbyte) 0; // 1 = re, 0 = none
+                n_words_subject = 0; 
+                n_char_subject = 0;
+                is_non_ASCII_subject = false;
+                is_re_fwd_subject = 0;
             }
         }
 
