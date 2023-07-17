@@ -102,6 +102,7 @@ namespace PhishingDataCollector
                 CancellationToken = cts.Token,
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             };
+            
             try
             {
                 int tot_n_mails = rawMailList.Count();
@@ -110,35 +111,38 @@ namespace PhishingDataCollector
                 int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
                 if (_executeInParallel)
                 {
-                    Parallel.For(0, numBatches, i =>
+                    dispatcher.Invoke(() =>
                     {
-                        Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
-                        Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
-                            async m =>
-                            {
-                                cts.Token.ThrowIfCancellationRequested();
-                                Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
-
-                                MailData data = new MailData(m);
-                                await Task.Run(() => data.ComputeFeatures()).
-                                ContinueWith((prevTask) =>
+                        Parallel.For(0, numBatches, i =>
+                        {
+                            Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
+                            Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
+                                async m =>
                                 {
-                                    MailList.Add(data);
-                                    Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                                    Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                                    /*if (tot_n_mails - progress == 0)
+                                    cts.Token.ThrowIfCancellationRequested();
+                                    Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
+
+                                    MailData data = new MailData(m);
+                                    await Task.Run(() => data.ComputeFeatures()).
+                                    ContinueWith((prevTask) =>
                                     {
-                                        dispatcher.Invoke(() =>
+                                        MailList.Add(data);
+                                        Debug.WriteLine("Processed mail with ID: " + data.GetID());
+                                        Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                                        /*if (tot_n_mails - progress == 0)
                                         {
-                                            SaveMails(MailList.ToArray());
-                                        });
-                                    }*/
-                                    progress++;
-                                    SaveMail(data);
-                                    return;
-                                });
-                            }
-                        );
+                                            dispatcher.Invoke(() =>
+                                            {
+                                                SaveMails(MailList.ToArray());
+                                            });
+                                        }*/
+                                        progress++;
+                                        SaveMail(data);
+                                        return;
+                                    });
+                                }
+                            );
+                        });
                     });
                 } else
                 {
@@ -148,7 +152,10 @@ namespace PhishingDataCollector
                         MailList.Add(data);
                         Debug.WriteLine("Processed mail with ID: " + data.GetID());
                         Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                        SaveMail(data);
+                        dispatcher.Invoke(() =>
+                        {
+                            SaveMail(data);
+                        });
                         progress++;
                     }
                 }
@@ -269,11 +276,11 @@ namespace PhishingDataCollector
             return email_names;
         }
 
+        // Wrapper for saving 1 email through SaveMails
         private static void SaveMail(MailData mail, string outputFolder = null)
         {
             SaveMails(new MailData[1] { mail }, outputFolder);
         }
-
 
         private static void SaveMails(MailData[] mails, string outputFolder = null)
         {
