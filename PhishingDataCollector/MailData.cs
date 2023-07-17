@@ -11,6 +11,7 @@ using NHunspell;
 using Microsoft.Recognizers.Text;
 using OpenNLP.Tools.PosTagger;
 using LanguageDetection;
+using static com.sun.net.httpserver.Authenticator;
 
 namespace PhishingDataCollector
 {
@@ -66,8 +67,8 @@ namespace PhishingDataCollector
         public short vt_l_clean;
         public short vt_l_unknown;
 
-        // URL eatures
-        public URLData MailURL;
+        // URL features
+        public List<URLData> MailURLs = new List<URLData>();
 
         // Attachments Features
         public byte n_attachments;
@@ -164,8 +165,10 @@ namespace PhishingDataCollector
             ComputeLinkBodyFeatures();  // This also sets MailURL
 
             // -- URL features 
-            /* Disabled for testing */
-            MailURL?.ComputeURLFeatures();
+            foreach (var MailURL in MailURLs)
+            {
+                MailURL?.ComputeURLFeatures();
+            }
 
             // -- Attachment features
             ComputeAttachmentsFeatures();
@@ -197,8 +200,6 @@ namespace PhishingDataCollector
             //Feature n_table_tag
             rx = new Regex(@"<table", RegexOptions.IgnoreCase);
             n_table_tag = rx.Matches(_HTMLBody).Count;
-            //Feature automated_readability_index
-            automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, "it");
             //Feature with link in page
             rx = new Regex("<a\\s+(?:[^>]*?\\s+)?href=([\"\'])(.*?)([\"\'])[A-z0 - 9,.\\/= \'\" \\-_]*>\\s*(.*)\\s*<\\/a>", RegexOptions.IgnoreCase);
             foreach (Match m in rx.Matches(_HTMLBody))
@@ -224,7 +225,6 @@ namespace PhishingDataCollector
 
             //Feature cap_ratio
             var n_lowercase_chars_body = Regex.Matches(_plainTextBody, "[a-z]").Count;
-            
             cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / n_lowercase_chars_body : 0;
 
             //Feature n_special_characters_body
@@ -254,6 +254,8 @@ namespace PhishingDataCollector
             {
                 dictPath = Path.Combine(dictPath, "en");
             }
+            //Feature automated_readability_index (based on the mail's detected language)
+            automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, language);
 
             // n_misspelled_words, n_phishy, n_scammy
             n_misspelled_words = 0;
@@ -321,6 +323,7 @@ namespace PhishingDataCollector
                 vdb_rate = (float) n_basic_voc_words / n_words;
             }
             else {
+                // TODO italian language
                 voc_rate = 0;
                 vdb_rate = 0;
                 vdb_adjectives_rate = 0;
@@ -360,7 +363,7 @@ namespace PhishingDataCollector
                 }
             }
 
-            List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
+            //List<URLData> urls_in_mail = new List<URLData>();  // We store here the scans for each URL in the email
             foreach (string link in links)
             {
                 if (!Regex.IsMatch(link, @"^(?:phone|mailto|tel|sms|callto):") && !string.IsNullOrEmpty(link))
@@ -381,13 +384,15 @@ namespace PhishingDataCollector
                     {
                         url.SetVTScan(alreadyAnalyzed);
                     }
-                    urls_in_mail.Add(url);
+                    MailURLs.Add(url);
+                    //urls_in_mail.Add(url);
                     if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords
                     {
                         binary_URL_bag_of_words = Regex.IsMatch(link, @"click|here|login|update");
                     }
                 }
             }
+            /*
             vt_l_maximum = 0;
             vt_l_positives = 0;
             vt_l_clean = 0;
@@ -433,7 +438,7 @@ namespace PhishingDataCollector
                     MailURL = urls_in_mail[random.Next(0, urls_in_mail.Count - 1)];                   
                 }
                 else { MailURL = secondCandidate; }
-            }
+            }*/
         }
 
         private void ComputeSubjectFeatures() 

@@ -14,22 +14,25 @@ namespace PhishingDataCollector
         private readonly IPAddress _IP;
         private readonly string _hostName;  // Host name (e.g., "www.studenti.uniba.it")
         private readonly string _domainName;  // Domain name (e.g., "uniba.it")
-        private readonly string _protocolHostName;  // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
-        private readonly string _protocol;
+       private readonly string _protocol;
         private readonly string _port;
         private readonly string _path;  // URL path (e.g., /segreteria/libretto?q=123&p=true)
-        private readonly string[] _comTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
+        private readonly string[] _commonTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
             ".au", ".us", ".ru", ".ch", ".it", ".nl", ".se", ".no", ".es", ".mil", ".info", ".tk", ".cn", ".xyz", ".top" };  // most common top-level domains
         private readonly string[] _sensitiveWords = { "secure", "account", "webscr", "login", "ebayisapi", "signin", "banking", "confirm"};
-        private readonly char[] specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
-        private Dictionary<char, float> _letterFrequencyEnglish = new Dictionary<char, float>() {
+        private readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
+        private readonly Dictionary<char, float> _letterFrequencyEnglish = new Dictionary<char, float>() {
             { 'E', 0.12f } , { 'T' , 0.091f }, { 'A' , 0.0812f }, { 'O' , 0.0768f }, { 'I' , 0.0731f }, { 'N' , 0.0695f }, { 'S' , 0.0628f },
             { 'R' , 0.0602f }, { 'H' , 0.0592f }, { 'D' , 0.0432f }, { 'L' , 0.0398f }, { 'U' , 0.0288f }, { 'C' , 0.0271f }, { 'M' , 0.0261f },
             { 'F' , 0.0230f }, { 'Y' , 0.0211f }, { 'W' , 0.0209f }, { 'G' , 0.0203f }, { 'P' , 0.0182f }, { 'B' , 0.0149f }, { 'V' , 0.0111f },
             { 'K' , 0.0069f }, { 'X' , 0.0017f }, { 'Q' , 0.0011f }, { 'J' , 0.0010f }, { 'Z' , 0.0007f }
         };  // contains the frequencies of the letters in the English language
+        private readonly string[] _commonFreeDomains = { "000webhostapp.com", "weebly.com", "umbler.com", "16mb.com", "godaddysites.com", 
+            "webcindario.com", "ddns.net", "joomla.org", "webnode.com", "wordpress.com", "altervista.org", "wix.com", "hostinger.", "sites.google.com" };
         private VirusTotalScan VTScan { get; set; }
-
+        
+        public readonly string FullHostName;  // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
+        
         //URL features
         public int n_dashes;
         public int n_underscores;
@@ -92,7 +95,7 @@ namespace PhishingDataCollector
             _path = urlMatch.Groups[4].Value;   // Path in the URL (e.g., "/segreteria/libretto?q=par&t=true")
             if (!string.IsNullOrEmpty(_hostName))
             {
-                _protocolHostName = string.IsNullOrEmpty(_protocol) ? _hostName : _protocol + "://" + _hostName;  // e.g. https:://www.uniba.it
+                FullHostName = string.IsNullOrEmpty(_protocol) ? _hostName : _protocol + "://" + _hostName;  // e.g. https:://www.uniba.it
                 Match domainMatch = Regex.Match(_hostName, @"\w+(\.\w+)$");  // Domain name (e.g., "uniba.it")
                 _domainName = domainMatch.Groups[0].Value;  // the full match
                 _TLD = domainMatch.Groups[1].Value;
@@ -100,6 +103,9 @@ namespace PhishingDataCollector
                 {
                     _domainName = _hostName;
                 }
+            } else
+            {
+                throw new ArgumentException("The provided URL is not a valid URL");
             }
         }
 
@@ -172,7 +178,7 @@ namespace PhishingDataCollector
             prefixes_suffixes = Regex.Match(_URL, @"\w+\-\w+", RegexOptions.IgnoreCase).Success;
             //Feature n_tld_in_paths
             n_tld_in_paths = 0;
-            foreach (string s in _comTLDs)
+            foreach (string s in _commonTLDs)
             {
                 if (Regex.Match(_URL, s, RegexOptions.IgnoreCase).Success)
                 {
@@ -181,7 +187,7 @@ namespace PhishingDataCollector
             }
             //Feature n_special_characters_URL
             n_special_characters_URL = 0;
-            foreach (char c in specialCharacters)
+            foreach (char c in _specialCharacters)
             {
                 n_special_characters_URL = Regex.Matches(_URL, c.ToString(), RegexOptions.IgnoreCase).Count;
             }
@@ -211,12 +217,12 @@ namespace PhishingDataCollector
             i = 0;
             while (i < _domain.Length)
             {
-                while (i < _domain.Length && !System.Char.IsLetter(_domain[i]))
+                while (i < _domain.Length && !Char.IsLetter(_domain[i]))
                 {
                     ++i;
                 }
                 int start = i;
-                while (i < _domain.Length && System.Char.IsLetter(_domain[i]))
+                while (i < _domain.Length && Char.IsLetter(_domain[i]))
                 {
                     ++i;
                 }
@@ -255,8 +261,8 @@ namespace PhishingDataCollector
                 }
             }
 
-            //Feature
-            string queryParameters = _URL.Substring(_URL.IndexOf("?"));
+            //Feature internal_link
+            string queryParameters = _URL.Substring(_URL.IndexOf("?")); // This feature indicates whether the path of the URL contains another link. (the path is found after ".[tld]/")
             internal_link = Regex.Match(queryParameters, @"((http|ftp|https):\/\/)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", RegexOptions.IgnoreCase).Success;
 
             // Feature out_of_position_TLD
@@ -280,7 +286,7 @@ namespace PhishingDataCollector
             DNS_info_exists_binary = dnsInfo.GetFeatureDNSInfoExists();
 
             // Page Rank
-            PageRank pr = new PageRank(_protocolHostName);
+            PageRank pr = new PageRank(FullHostName);
             PageRank_API.PerformAPICall(pr);
             page_rank = pr.GetFeaturePageRank();
             website_traffic = pr.GetFeatureWebsiteTraffic();
@@ -439,7 +445,7 @@ namespace PhishingDataCollector
                 out_of_position_TLD = true;
                 return;
             }
-            foreach (string common_tld in _comTLDs)  // OR if another TLD (than the one in the URL) appears at all in the URL
+            foreach (string common_tld in _commonTLDs)  // OR if another TLD (than the one in the URL) appears at all in the URL
             {
                 if (common_tld != _TLD && _URL.Contains(common_tld)) {
                     out_of_position_TLD = true;
@@ -454,7 +460,7 @@ namespace PhishingDataCollector
             domain_in_path = false;
             if (!string.IsNullOrEmpty(_path))
             {
-                foreach (string common_tld in _comTLDs)
+                foreach (string common_tld in _commonTLDs)
                 {
                     if (_path.Contains(common_tld))
                     {
