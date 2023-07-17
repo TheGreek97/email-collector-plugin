@@ -17,20 +17,19 @@ public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
+    private static readonly int TIMEOUT = 2000;
 
     public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = ".json")
-    {
-        if (_httpClient == null)
-        {
-            _httpClient = new HttpClient();
-        }
-        
+    {   
+        //_httpClient = _httpClient ?? new HttpClient();
+        _httpClient.CancelPendingRequests();
+
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
 
         // Split the email list in multiple requests of N mails (e.g., 20)
         List<string[]> chunks = new List<string[]>();
         int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
-        int testSize = fileNames.Length;
+        int testSize = fileNames.Length;  // TEST ONLY: sends only N mails to the endpoint
         for (int i = 0; i < testSize; i += chunkSize)  
         {
             int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
@@ -54,6 +53,8 @@ public static class FileUploader
             var bag = new ConcurrentBag<object>();
             await chunks.ParallelForEachAsync(async mailChunk =>
             {
+                CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
+
                 // Build the request body
                 using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
                 {
@@ -64,19 +65,24 @@ public static class FileUploader
                         formData.Add(fileContent, fileName, Path.GetFileName(filePath));
                     }
 
-                    var response = await _httpClient.PostAsync(url, formData);
+                    var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
 
                     bag.Add(response);
                     Debug.WriteLine(response.StatusCode);
+                    if (! response.IsSuccessStatusCode)
+                    {
+                        errors = true;
+                    }
                 }
             }, maxDegreeOfParallelism: 10);
-            var count = bag.Count;
-
+            //var count = bag.Count;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("Error while uploading the files");
+            Debug.WriteLine("Error while uploading the files ");
             Debug.WriteLine(ex);
+            _httpClient.Dispose();
+            _httpClient = new HttpClient();
             cts.Cancel();
             errors = true;
         }

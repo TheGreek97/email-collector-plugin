@@ -12,12 +12,14 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
+using Newtonsoft.Json.Serialization;
 
 namespace PhishingDataCollector
 {
     public partial class ThisAddIn
     {
-        public static System.Net.Http.HttpClient HTTPCLIENT = new System.Net.Http.HttpClient();
+        //public static HttpClientHandler httpHandler = new HttpClientHandler();
+        public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
 
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
@@ -40,25 +42,48 @@ namespace PhishingDataCollector
             //ExecuteAddIn();
         }
 
+        public static void OnError() { }
+
+
         public static async void ExecuteAddIn()
         {
+            var watch = Stopwatch.StartNew();
             var dispatcher = Dispatcher.CurrentDispatcher;
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();
-            
+
             // Get the mail list
-            MAPIFolder inbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);  
-            MAPIFolder junk = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk); 
-            IEnumerable<MailItem> mailList = from MailItem mail in inbox.Items select mail; 
-            IEnumerable<MailItem> mailListJunk = from MailItem mail in junk.Items select mail; 
-            /*MessageBox.Show("L'esportazione dei dati inizierà ora. Sono presenti " + mailList.Count() + " mail da analizzare. \n" +
-            "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione. " +
-            "Al termine di quest'ultima, sarà mostrata una notifica.", "Phishing Data Collector");*/
+            List<MAPIFolder> mailFolders = new List<MAPIFolder>();
+            /*foreach (Folder folder in Globals.ThisAddIn.Application.Session.Folders)
+            {
+                mailFolders.Add(Globals.ThisAddIn.Application.Session.GetFolderFromID(folder.EntryID));
+            }*/
+            mailFolders.Add (Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox));  // "inbox" folder
+            mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems));  // "deleted" folder
+            mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk)); // "junk" folder
+            try
+            {
+                mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
+            }
+            catch {
+                Debug.WriteLine("Not an exchange account");
+            }
+
+            List<MailItem> mailItems = new List<MailItem>();
+            foreach (var folder in mailFolders)
+            {
+                mailItems.AddRange(from MailItem mail in folder.Items select mail);
+            }
+            
+            var tot_n_mails_to_process = mailItems.Count();
+            MessageBox.Show("L'esportazione dei dati inizierà a breve. Sono presenti " + tot_n_mails_to_process + " mail da elaborare.\n" +
+            "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione.\n" +
+            "Al termine di quest'ultima, sarà mostrata una notifica. Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.", "Phishing Data Collector");/**/
 
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            int test_limiter = 10;  // TEST ONLY: Limiter = 20 mails
-            foreach (MailItem m in mailList.Concat(mailListJunk))  // See both inbox and junk emails
+            int test_limiter = tot_n_mails_to_process;  // TEST ONLY: Limit the feature computation to N mails
+            foreach (MailItem m in mailItems)  // See both inbox and junk emails
             {
                 // Checks that the mail has not already been computed previously
                 if (! ExistingEmails.Contains(m.EntryID))
@@ -127,21 +152,24 @@ namespace PhishingDataCollector
                         progress++;
                     }
                 }
-                MessageBox.Show("Esportazione dei dati estratti dalle email completata! I dati saranno ora " +
-                    "mandati ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n " +
-                    "I dati raccolti risultano da un processo di elaborazione delle email della tua casella di posta e sono completamente anonimi, " +
+                watch.Stop();
+                MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
+                    "\nProcessate " + tot_n_mails + " email in " + watch.ElapsedMilliseconds + " ms.\n" +
+                    "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
+                    "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
                     AppName);
 
                 // Data trasmission over HTTPS
-                try { 
+                try {
+                    watch.Restart();
                     var url = "http://127.0.0.1:8000/api/mail";
                     ExistingEmails = GetExistingEmails();
-                    MessageBox.Show("Upload dei dati iniziato.", AppName);
+                    // MessageBox.Show("Upload dei dati iniziato.", AppName);
                     bool result = await FileUploader.UploadFiles(url, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"));
                     if (result)
                     {
-                        MessageBox.Show("I dati sono stati trasmessi con successo! Grazie", AppName);
+                        MessageBox.Show("I dati sono stati trasmessi con successo (in " + watch.ElapsedMilliseconds + " ms)! Grazie", AppName);
                     } else
                     {
                         MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
@@ -156,7 +184,7 @@ namespace PhishingDataCollector
                 Debug.WriteLine("Errore esterno:");
                 Debug.WriteLine(e);
                 Debug.WriteLine(e.StackTrace);
-                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore:" +e.Message, AppName);
+                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " +e.Message, AppName);
             }
             finally
             {
@@ -171,7 +199,7 @@ namespace PhishingDataCollector
             string[] mail_headers;
             try
             {
-                string mail_headers_string = mail.PropertyAccessor.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x007D001E"); //:subject, :sender 
+                string mail_headers_string = mail.PropertyAccessor.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x007D001E");  // :subject, :sender 
                 Regex headers_re = new Regex(@"\n([^\s])");
                 List<string> headers = new List<string>();
                 string[] header_rows = headers_re.Split(mail_headers_string);

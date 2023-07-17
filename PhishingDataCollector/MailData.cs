@@ -69,6 +69,7 @@ namespace PhishingDataCollector
 
         // URL features
         public List<URLData> MailURLs = new List<URLData>();
+        public readonly int MailSize;
 
         // Attachments Features
         public byte n_attachments;
@@ -89,8 +90,7 @@ namespace PhishingDataCollector
 
         /* Private Fields */
         private string ID => _mailID;
-
-        private readonly int _mailSize, _num_recipients;
+        private readonly int _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
@@ -115,7 +115,7 @@ namespace PhishingDataCollector
         {
             // Set private fields
             _mailID = mail.EntryID;
-            _mailSize = mail.Size;
+            MailSize = mail.Size;
             _mailHeaders = mail.Headers;
             _mailSubject = mail.Subject;
             _mailBody = mail.Body;
@@ -131,7 +131,7 @@ namespace PhishingDataCollector
         {
             // Set private fields
             _mailID = id;
-            _mailSize = size;
+            MailSize = size;
             _mailHeaders = headers;
             _mailSubject = subject;
             _mailBody = body;
@@ -229,9 +229,12 @@ namespace PhishingDataCollector
 
             //Feature n_special_characters_body
             n_special_characters_body = 0;
-            foreach (char c in _specialCharacters)
+            foreach (char c in _plainTextBody)
             {
-                n_special_characters_body = Regex.Matches(_plainTextBody, c.ToString(), RegexOptions.IgnoreCase).Count;
+                if (_specialCharacters.Contains(c))
+                {
+                    n_special_characters_body++;
+                }
             }
 
             //Feature language

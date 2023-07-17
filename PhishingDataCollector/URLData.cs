@@ -14,7 +14,7 @@ namespace PhishingDataCollector
         private readonly IPAddress _IP;
         private readonly string _hostName;  // Host name (e.g., "www.studenti.uniba.it")
         private readonly string _domainName;  // Domain name (e.g., "uniba.it")
-       private readonly string _protocol;
+        private readonly string _protocol;
         private readonly string _port;
         private readonly string _path;  // URL path (e.g., /segreteria/libretto?q=123&p=true)
         private readonly string[] _commonTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
@@ -30,8 +30,9 @@ namespace PhishingDataCollector
         private readonly string[] _commonFreeDomains = { "000webhostapp.com", "weebly.com", "umbler.com", "16mb.com", "godaddysites.com", 
             "webcindario.com", "ddns.net", "joomla.org", "webnode.com", "wordpress.com", "altervista.org", "wix.com", "hostinger.", "sites.google.com" };
         private VirusTotalScan VTScan { get; set; }
-        
-        public readonly string FullHostName;  // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
+
+        // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
+        public readonly string FullHostName;  
         
         //URL features
         public int n_dashes;
@@ -112,21 +113,22 @@ namespace PhishingDataCollector
         public void ComputeURLFeatures()
         {
             // Feature n_dashes
-            n_dashes = Regex.Matches(_URL, "-").Count;
+            n_dashes = _URL.Count(c => c == '-');
             // Feature n_underscores
-            n_underscores = Regex.Matches(_URL, "_").Count;
+            n_underscores = _URL.Count(c => c == '_');
             // Feature n_dots
-            n_dots = Regex.Matches(_URL, ".").Count;
+            n_dots = _URL.Count(c => c == '.');
             // Feature n_digits
-            n_digits = Regex.Matches(_URL, "[0-9]").Count;
+            n_digits = _URL.Count(char.IsDigit);
             // Fetaure digit_letter_ratio
-            digit_letter_ratio = n_digits / Regex.Matches(_URL, "[A-z]").Count;
+            var n_letters = _URL.Count(char.IsLetter);
+            digit_letter_ratio = n_letters > 0 ? n_digits / n_letters : 100;
+            // Fetaure n_slashes
+            n_slashes = _URL.Count(c => c == '/');
 
             ComputeProtocolPortMatchFeature();
             has_https = Regex.IsMatch(_protocol, "https", RegexOptions.IgnoreCase);
-
-            // Fetaure n_slashes
-            n_slashes = Regex.Matches(_URL, "/").Count;
+            
             // Feature TLD
             TLD = _TLD;
             // Feature url_length
@@ -187,9 +189,12 @@ namespace PhishingDataCollector
             }
             //Feature n_special_characters_URL
             n_special_characters_URL = 0;
-            foreach (char c in _specialCharacters)
+            foreach (char c in _URL)
             {
-                n_special_characters_URL = Regex.Matches(_URL, c.ToString(), RegexOptions.IgnoreCase).Count;
+                if (_specialCharacters.Contains(c))
+                {
+                    n_special_characters_URL++;
+                }
             }
 
             //Feature hostname_longest_number_length
@@ -262,8 +267,8 @@ namespace PhishingDataCollector
             }
 
             //Feature internal_link
-            string queryParameters = _URL.Substring(_URL.IndexOf("?")); // This feature indicates whether the path of the URL contains another link. (the path is found after ".[tld]/")
-            internal_link = Regex.Match(queryParameters, @"((http|ftp|https):\/\/)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", RegexOptions.IgnoreCase).Success;
+            //string queryParameters = _URL.Substring(_URL.IndexOf("?")); // This feature indicates whether the path of the URL contains another link. (the path is found after ".[tld]/")
+            //internal_link = Regex.Match(queryParameters, @"((http|ftp|https):\/\/)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", RegexOptions.IgnoreCase).Success;
 
             // Feature out_of_position_TLD
             ComputeOutOfPositionTLDFeature();
