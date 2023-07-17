@@ -21,13 +21,14 @@ namespace PhishingDataCollector
         private readonly string[] _comTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
             ".au", ".us", ".ru", ".ch", ".it", ".nl", ".se", ".no", ".es", ".mil", ".info", ".tk", ".cn", ".xyz", ".top" };  // most common top-level domains
         private readonly string[] _sensitiveWords = { "secure", "account", "webscr", "login", "ebayisapi", "signin", "banking", "confirm"};
-        private VirusTotalScan VTScan { get; set; }
+        private readonly char[] specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
         private Dictionary<char, float> _letterFrequencyEnglish = new Dictionary<char, float>() {
             { 'E', 0.12f } , { 'T' , 0.091f }, { 'A' , 0.0812f }, { 'O' , 0.0768f }, { 'I' , 0.0731f }, { 'N' , 0.0695f }, { 'S' , 0.0628f },
             { 'R' , 0.0602f }, { 'H' , 0.0592f }, { 'D' , 0.0432f }, { 'L' , 0.0398f }, { 'U' , 0.0288f }, { 'C' , 0.0271f }, { 'M' , 0.0261f },
             { 'F' , 0.0230f }, { 'Y' , 0.0211f }, { 'W' , 0.0209f }, { 'G' , 0.0203f }, { 'P' , 0.0182f }, { 'B' , 0.0149f }, { 'V' , 0.0111f },
             { 'K' , 0.0069f }, { 'X' , 0.0017f }, { 'Q' , 0.0011f }, { 'J' , 0.0010f }, { 'Z' , 0.0007f }
         };  // contains the frequencies of the letters in the English language
+        private VirusTotalScan VTScan { get; set; }
 
         //URL features
         public int n_dashes;
@@ -46,6 +47,19 @@ namespace PhishingDataCollector
         public short n_sensitive_words;
         public float url_char_distance_w;
         public float url_char_distance_r;
+        public int domain_length;
+        public bool shortened_service;
+        public bool IP_address;
+        public bool at_symbol;
+        public bool prefixes_suffixes;
+        public int n_tld_in_paths;
+        public string hostname_longest_number_length;
+        public string hostname_longest_word_length;
+        public int n_special_characters_URL;
+        public bool exe_file;
+        public bool slash_redirect;
+        public bool embedded_domain;
+        public bool internal_link;
         public bool domain_includes_dash;
         public int hostname_length;
         public int path_length;
@@ -141,6 +155,110 @@ namespace PhishingDataCollector
             path_length = _TLD.Length - _domain.Length - 1;
             // Feature n_query_components
             n_query_components = Regex.Match(_URL, @"\?((\w+(=\w)*)+&?)+", RegexOptions.IgnoreCase).Value.Split('&').Length;
+
+            //Feature domain_length
+            domain_length = _domain.Length;
+            //Feature shortened_service
+            shortened_service = ComputeShortenedServiceFeature();
+            //Feature IP_address
+            IP_address = Regex.Match(_domain, @"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$").Success;
+            //Feature exe_file
+            exe_file = Regex.Match(_URL, @"\.exe", RegexOptions.IgnoreCase).Success;
+            //Feature exe_file
+            slash_redirect = Regex.Match(_URL, @"[^:\/\/](\/\/)", RegexOptions.IgnoreCase).Success;
+            //Feature at_symbol
+            at_symbol = Regex.Match(_URL, "@", RegexOptions.IgnoreCase).Success;
+            //Feature prefixes_suffixes
+            prefixes_suffixes = Regex.Match(_URL, @"\w+\-\w+", RegexOptions.IgnoreCase).Success;
+            //Feature n_tld_in_paths
+            n_tld_in_paths = 0;
+            foreach (string s in _comTLDs)
+            {
+                if (Regex.Match(_URL, s, RegexOptions.IgnoreCase).Success)
+                {
+                    n_tld_in_paths++;
+                }
+            }
+            //Feature n_special_characters_URL
+            n_special_characters_URL = 0;
+            foreach (char c in specialCharacters)
+            {
+                n_special_characters_URL = Regex.Matches(_URL, c.ToString(), RegexOptions.IgnoreCase).Count;
+            }
+
+            //Feature hostname_longest_number_length
+            hostname_longest_number_length = "";
+            int i = 0;
+            while (i < _domain.Length)
+            {
+                while (i < _domain.Length && !System.Char.IsDigit(_domain[i]))
+                {
+                    ++i;
+                }
+                int start = i;
+                while (i < _domain.Length && System.Char.IsDigit(_domain[i]))
+                {
+                    ++i;
+                }
+                if (i - start > hostname_longest_number_length.Length)
+                {
+                    hostname_longest_number_length = _domain.Substring(start, i);
+                }
+            }
+
+            //Feature hostname_longest_word_length
+            hostname_longest_word_length = "";
+            i = 0;
+            while (i < _domain.Length)
+            {
+                while (i < _domain.Length && !System.Char.IsLetter(_domain[i]))
+                {
+                    ++i;
+                }
+                int start = i;
+                while (i < _domain.Length && System.Char.IsLetter(_domain[i]))
+                {
+                    ++i;
+                }
+                if (i - start > hostname_longest_word_length.Length)
+                {
+                    hostname_longest_word_length = _domain.Substring(start, i);
+                }
+            }
+
+            //Feauture embedded_domain
+            embedded_domain = false;
+            // Check if the URL contains a path component
+            int doubleSlashIndex = _URL.IndexOf("//");
+            if (doubleSlashIndex < 0 || doubleSlashIndex + 2 >= _URL.Length)
+            {
+                embedded_domain = false; // Invalid URL format
+            }
+
+            int pathStartIndex = _URL.IndexOf('/', doubleSlashIndex + 2);
+            if (pathStartIndex < 0 || pathStartIndex + 1 >= _URL.Length)
+            {
+                embedded_domain = false; // No path component in the URL
+            }
+
+            // Extract the path component
+            string path = _URL.Substring(pathStartIndex + 1);
+
+            // Check if the path contains a dot-separated domain/hostname
+            string[] parts = path.Split('/');
+            foreach (string part in parts)
+            {
+                // Exclude empty parts and check if the part contains dots
+                if (!string.IsNullOrEmpty(part) && part.Contains("."))
+                {
+                    embedded_domain = true;
+                }
+            }
+
+            //Feature
+            string queryParameters = _URL.Substring(_URL.IndexOf("?"));
+            internal_link = Regex.Match(queryParameters, @"((http|ftp|https):\/\/)?([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", RegexOptions.IgnoreCase).Success;
+
             // Feature out_of_position_TLD
             ComputeOutOfPositionTLDFeature();
             // Feature domain_in_path
@@ -185,6 +303,19 @@ namespace PhishingDataCollector
         public VirusTotalScan GetVTScan() { return VTScan; }
         public void SetVTScan(VirusTotalScan vt) { VTScan = vt; }
 
+        //Feature shortened_service
+        private bool ComputeShortenedServiceFeature()
+        {
+            bool ret = false;
+            string[] shortenedDomains = { "t.co", "ow.ly", "bit.ly", "tinyurl.com", "rb.gy", "tiny.cc", "bit.do", "festyy.com", "cutt.ly", "goo.gl" };
+            foreach (string s in shortenedDomains)
+            {
+                if (ret = Regex.Match(_URL, s, RegexOptions.IgnoreCase).Success)
+                    break;
+            }
+
+            return ret;
+        }
         private void ComputeEntropyCharsURLFeature()
         {
             // Entropy H(X) = - \sum_{x \in X}(p(x)*logp(x))

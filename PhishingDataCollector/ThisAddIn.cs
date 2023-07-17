@@ -12,8 +12,6 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
-using System.Security.Cryptography;
-using javax.crypto;
 
 namespace PhishingDataCollector
 {

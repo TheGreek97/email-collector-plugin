@@ -58,6 +58,7 @@ namespace PhishingDataCollector
         public int n_phishy;
         public int n_scammy;
         public int n_misspelled_words;
+        public int n_special_characters_body;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -97,6 +98,7 @@ namespace PhishingDataCollector
             "attention", "request", "suspended", "company", "bank", "deposit", "post", "money", "bank", "update", "verify"};
         private readonly string[] _scammyWords = { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
             "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" };
+        private readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -163,12 +165,7 @@ namespace PhishingDataCollector
 
             // -- URL features 
             /* Disabled for testing */
-            if (MailURL != null)
-            {
-                MailURL.ComputeURLFeatures();
-                // ---- URL Domain features
-                //MailURL.ComputeDomainFeatures();
-            }
+            MailURL?.ComputeURLFeatures();
 
             // -- Attachment features
             ComputeAttachmentsFeatures();
@@ -226,10 +223,18 @@ namespace PhishingDataCollector
             n_links = rx.Matches(_HTMLBody).Count;
 
             //Feature cap_ratio
-            cap_ratio = Regex.Matches(_plainTextBody, "[A-Z]").Count / Regex.Matches(_plainTextBody, "[a-z]").Count;
+            var n_lowercase_chars_body = Regex.Matches(_plainTextBody, "[a-z]").Count;
+            
+            cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / n_lowercase_chars_body : 0;
+
+            //Feature n_special_characters_body
+            n_special_characters_body = 0;
+            foreach (char c in _specialCharacters)
+            {
+                n_special_characters_body = Regex.Matches(_plainTextBody, c.ToString(), RegexOptions.IgnoreCase).Count;
+            }
 
             //Feature language
-            //TODO
             LanguageDetector detector = new LanguageDetector();
             detector.AddAllLanguages();
             language = detector.Detect(_plainTextBody);
