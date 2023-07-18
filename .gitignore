@@ -366,3 +366,4 @@ FodyWeavers.xsd
 /PhishingDataCollector/.env
 /output/*
 /output/emails/*
+/AurigaAddin
