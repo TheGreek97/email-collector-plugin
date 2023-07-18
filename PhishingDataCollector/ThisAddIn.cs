@@ -13,6 +13,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
 using Newtonsoft.Json.Serialization;
+using System.Security.Cryptography;
 
 namespace PhishingDataCollector
 {
@@ -30,9 +31,26 @@ namespace PhishingDataCollector
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
-            string workingDir= Directory.GetCurrentDirectory();
-            string rootDir = Directory.GetParent(workingDir).Parent.FullName;
-            var dotenv = Path.Combine(rootDir, ".env");
+            //Get the assembly information
+            System.Reflection.Assembly assemblyInfo = System.Reflection.Assembly.GetExecutingAssembly();
+
+            //Location is where the assembly is run from 
+            //string assemblyLocation = assemblyInfo.Location;
+
+            //CodeBase is the location of the ClickOnce deployment files
+            Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
+            string ClickOnceLocation = Path.GetDirectoryName(uriCodeBase.LocalPath.ToString());
+            var uri = Path.Combine(ClickOnceLocation, "Resources", "dict", "it.dic");
+
+            var fileStream = File.ReadAllText(uri);
+
+            //MessageBox.Show($"assemblyLocation : {assemblyLocation}, clickOnceLocation : {ClickOnceLocation}");
+            MessageBox.Show($" Array: {fileStream.Substring(0, 20)}"); // System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames())}");
+
+            string workingDir = ClickOnceLocation;
+            //string rootDir = Directory.GetParent(workingDir).Parent.FullName;  // Debug
+            string rootDir = workingDir;  // Release
+            var dotenv = Path.Combine(rootDir, "Outlook", ".env");
             DotEnv.Load(dotenv);
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
@@ -42,9 +60,6 @@ namespace PhishingDataCollector
             //ExecuteAddIn();
         }
 
-        public static void OnError() { }
-
-
         public static async void ExecuteAddIn()
         {
             var watch = Stopwatch.StartNew();
@@ -53,14 +68,11 @@ namespace PhishingDataCollector
             string[] ExistingEmails = GetExistingEmails();
 
             // Get the mail list
-            List<MAPIFolder> mailFolders = new List<MAPIFolder>();
-            /*foreach (Folder folder in Globals.ThisAddIn.Application.Session.Folders)
-            {
-                mailFolders.Add(Globals.ThisAddIn.Application.Session.GetFolderFromID(folder.EntryID));
-            }*/
-            mailFolders.Add (Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox));  // "inbox" folder
-            mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems));  // "deleted" folder
-            mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk)); // "junk" folder
+            List<MAPIFolder> mailFolders = new List<MAPIFolder> { 
+                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox),  // "inbox" folder
+                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems),  // "deleted" folder
+                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk) // "junk" folder
+            };
             try
             {
                 mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
@@ -74,12 +86,19 @@ namespace PhishingDataCollector
             {
                 mailItems.AddRange(from MailItem mail in folder.Items select mail);
             }
-            
-            var tot_n_mails_to_process = mailItems.Count();
-            MessageBox.Show("L'esportazione dei dati inizierà a breve. Sono presenti " + tot_n_mails_to_process + " mail da elaborare.\n" +
-            "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione.\n" +
-            "Al termine di quest'ultima, sarà mostrata una notifica. Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.", "Phishing Data Collector");/**/
 
+            // Prompt to user
+            var tot_n_mails_to_process = mailItems.Count();
+            var showMessage = "Sono presenti " + tot_n_mails_to_process + " mail da elaborare.\n" +
+            "Il client di posta elettronica potrebbe non essere disponibile per tutta la durata dell'esportazione.\n" +
+            "Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.\n" +
+            "Sei sicuro di voler iniziare il processo di esportazione?";
+            var dialogResult = MessageBox.Show(showMessage, AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (dialogResult == DialogResult.No)
+            {
+                return;
+            }
+           
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
             int test_limiter = tot_n_mails_to_process;  // TEST ONLY: Limit the feature computation to N mails
@@ -111,7 +130,7 @@ namespace PhishingDataCollector
                 int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
                 if (_executeInParallel)
                 {
-                    dispatcher.Invoke(() =>
+                    dispatcher.Invoke( () =>
                     {
                         Parallel.For(0, numBatches, i =>
                         {
@@ -129,13 +148,6 @@ namespace PhishingDataCollector
                                         MailList.Add(data);
                                         Debug.WriteLine("Processed mail with ID: " + data.GetID());
                                         Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                                        /*if (tot_n_mails - progress == 0)
-                                        {
-                                            dispatcher.Invoke(() =>
-                                            {
-                                                SaveMails(MailList.ToArray());
-                                            });
-                                        }*/
                                         progress++;
                                         SaveMail(data);
                                         return;
@@ -143,21 +155,23 @@ namespace PhishingDataCollector
                                 }
                             );
                         });
-                    });
+                    }, DispatcherPriority.Background);
                 } else
                 {
-                    foreach (RawMail m in rawMailList) { 
-                        MailData data = new MailData(m);
-                        data.ComputeFeatures();
-                        MailList.Add(data);
-                        Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                        Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                        dispatcher.Invoke(() =>
-                        {
+                    dispatcher.Invoke(() =>
+                    {
+                        foreach (RawMail m in rawMailList) { 
+                            MailData data = new MailData(m);
+                            data.ComputeFeatures();
+                            MailList.Add(data);
+                            Debug.WriteLine("Processed mail with ID: " + data.GetID());
+                            Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                        
                             SaveMail(data);
-                        });
-                        progress++;
-                    }
+                        
+                            progress++;
+                        }
+                    }, DispatcherPriority.Background);
                 }
                 watch.Stop();
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
@@ -232,7 +246,7 @@ namespace PhishingDataCollector
                 mail_headers = new string[0];
                 Debug.WriteLine($"{err.Message}");
             }
-
+            
             // Get attachments representation from MailItem (Hash)
             AttachmentData[] attachments;
             List<AttachmentData> attachments_list = new List<AttachmentData>();
@@ -246,7 +260,7 @@ namespace PhishingDataCollector
                 }
             }
             attachments = attachments_list.ToArray();
-
+            
             RawMail rawMail = new RawMail(
                 id: mail.EntryID,
                 size: mail.Size,
@@ -256,7 +270,8 @@ namespace PhishingDataCollector
                 sender: mail.SenderEmailAddress,
                 numRecipients: mail.Recipients.Count,
                 headers: mail_headers,
-                attachments: attachments);
+                attachments: attachments
+                );
             return rawMail;
         }
 

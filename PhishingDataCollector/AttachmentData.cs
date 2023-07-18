@@ -50,11 +50,12 @@ namespace PhishingDataCollector
         }
         public static AttachmentData ExtractFeatures (Attachment att) 
         {
-            string attachment_file_name = SaveAttachmentTemp(att);
-            string file_sha;
-            long file_size;
             try
             {
+                string attachment_file_name = SaveAttachmentTemp(att);
+                string file_sha;
+                long file_size;
+            
                 using (SHA256 SHA256 = SHA256Managed.Create())
                 {
                     using (FileStream fileStream = File.OpenRead(attachment_file_name))
@@ -64,14 +65,14 @@ namespace PhishingDataCollector
                     }
                     File.Delete(attachment_file_name);
                 }
+                AttachmentData wrap = new AttachmentData(attachment_file_name, file_sha, file_size);
+                return wrap;
             }
             catch (System.Exception e)
             {
                 Debug.WriteLine(e);
                 return null;
             }
-            AttachmentData wrap = new AttachmentData(attachment_file_name, file_sha, file_size);
-            return wrap;
         }
 
         private static string SaveAttachmentTemp (Attachment att)
