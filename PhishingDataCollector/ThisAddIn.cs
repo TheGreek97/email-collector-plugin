@@ -141,7 +141,7 @@ namespace PhishingDataCollector
                 //if (_executeInParallel){
                 await dispatcher.InvokeAsync(() =>
                 {
-                    dispatcher.Invoke(() =>
+                    for (int i = 0; i < numBatches; i++)
                     {
                         Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
                         Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
@@ -151,7 +151,8 @@ namespace PhishingDataCollector
                                 Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
 
                                     MailData data = new MailData(m);
-                                    await Task.Run(() => data.ComputeFeatures()).
+                                    // Extract features
+                                    int completed = await Task.Run(() => data.ComputeFeatures()).
                                     ContinueWith((prevTask) =>
                                     {
                                         MailList.Add(data);
@@ -166,13 +167,13 @@ namespace PhishingDataCollector
                                         }*/
                                         progress++;
                                         SaveMail(data);
-                                        return;
+                                        return progress;
                                     });
                                 }
                             );
-                        });
+                        }
                     });
-                } else
+                /*} else
                 {
                     foreach (RawMail m in rawMailList) { 
                         MailData data = new MailData(m);
@@ -186,7 +187,7 @@ namespace PhishingDataCollector
                         });
                         progress++;
                     }
-                }
+                }*/
                 watch.Stop();
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
                     "\nProcessate " + (progress - 1) + " email in " + watch.ElapsedMilliseconds/1000 + " s.\n" +
