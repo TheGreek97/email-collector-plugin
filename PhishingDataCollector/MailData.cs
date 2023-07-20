@@ -372,14 +372,14 @@ namespace PhishingDataCollector
                 if (!Regex.IsMatch(link, @"^(?:phone|mailto|tel|sms|callto):") && !string.IsNullOrEmpty(link))
                 {
                     URLData url = new URLData(link);
+                    // Will be executed in batch later 
+                    /*
                     VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.GetHostName());   // Checks if the link's hostname has already been analyzed
                     if (alreadyAnalyzed == null)
                     {
                         VirusTotalScan link_scan = new VirusTotalScan(url.GetHostName());
-                        /*
-                         * Disabled for testing 
-                         * VirusTotal_API.PerformAPICall(link_scan);
-                        */
+                        VirusTotal_API.PerformAPICall(link_scan);
+                        
                         VirusTotalScans.Add(link_scan);
                         url.SetVTScan(link_scan);
                     }
@@ -387,6 +387,7 @@ namespace PhishingDataCollector
                     {
                         url.SetVTScan(alreadyAnalyzed);
                     }
+                    */
                     MailURLs.Add(url);
                     //urls_in_mail.Add(url);
                     if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords

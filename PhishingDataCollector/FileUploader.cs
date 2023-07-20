@@ -64,14 +64,21 @@ public static class FileUploader
                         var fileContent = new StreamContent(File.OpenRead(filePath));
                         formData.Add(fileContent, fileName, Path.GetFileName(filePath));
                     }
-
-                    var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
-
-                    bag.Add(response);
-                    Debug.WriteLine(response.StatusCode);
-                    if (! response.IsSuccessStatusCode)
+                    try
+                    {
+                        var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
+                        bag.Add(response);
+                        Debug.WriteLine(response.StatusCode);
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            errors = true;
+                        }
+                    }
+                    catch
                     {
                         errors = true;
+                        cts.Cancel();
+                        return;
                     }
                 }
             }, maxDegreeOfParallelism: 10);
@@ -86,10 +93,26 @@ public static class FileUploader
             cts.Cancel();
             errors = true;
         }
-        finally
-        {
-            cts.Dispose();
-        }
         return !errors;
+    }
+
+    public static async Task<bool> TestConnection (string url)
+    {
+        // Test the connection to the server
+        bool result;
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            result = response.IsSuccessStatusCode;
+        } catch 
+        {
+            result = false;
+        } finally
+        {
+            // TODO: this is bad practice, but avoids "System.InvalidOperationException: This instance has already started one or more requests. Properties can only be modified before sending the first request."
+            _httpClient.Dispose();
+            _httpClient = new HttpClient();
+        }
+        return result;
     }
 }

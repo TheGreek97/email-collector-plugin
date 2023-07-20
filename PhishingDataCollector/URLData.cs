@@ -93,7 +93,7 @@ namespace PhishingDataCollector
             _protocol = urlMatch.Groups[1].Value;  // the protocol can be http, https, ftp, etc.
             _hostName = urlMatch.Groups[2].Value; // Host name (e.g., "www.studenti.uniba.it")
             _port = urlMatch.Groups[3].Value;  // Port (e.g., "8080")
-            _path = urlMatch.Groups[4].Value;   // Path in the URL (e.g., "/segreteria/libretto?q=par&t=true")
+            _path = urlMatch.Groups[4].Value;  // Path in the URL (e.g., "/segreteria/libretto?q=par&t=true")
             if (!string.IsNullOrEmpty(_hostName))
             {
                 FullHostName = string.IsNullOrEmpty(_protocol) ? _hostName : _protocol + "://" + _hostName;  // e.g. https:://www.uniba.it
@@ -153,7 +153,7 @@ namespace PhishingDataCollector
             // Feature url_char_distance_w
             url_char_distance_w = ((float)_URL.Split(new char[]{ 'w', 'W' }).Length / _URL.Length) - _letterFrequencyEnglish['W'];  // frequency of w in the URL - frequency of w in the English language
             // Feature url_char_distance_r
-            url_char_distance_w = ((float)_URL.Split(new char[] { 'r', 'R' }).Length / _URL.Length) - _letterFrequencyEnglish['R'];  // frequency of r in the URL - frequency of r in the English language
+            url_char_distance_r = ((float)_URL.Split(new char[] { 'r', 'R' }).Length / _URL.Length) - _letterFrequencyEnglish['R'];  // frequency of r in the URL - frequency of r in the English language
 
             // Feature hostname_length
             hostname_length = temp[0].Length;
@@ -282,6 +282,7 @@ namespace PhishingDataCollector
             ComputeEntropyNANCharsURLFeature();
         }
 
+        // These features will be computed later in batch 
         public void ComputeDomainFeatures()
         {
             // DNS Lookup
