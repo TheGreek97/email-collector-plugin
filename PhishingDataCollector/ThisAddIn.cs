@@ -23,11 +23,12 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
 
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = true;
+        //private static readonly bool _executeInParallel = true;
         private static readonly string AppName = "Auriga Mail Collector";
         private static readonly string ENDPOINT_TEST_URL = "http://127.0.0.1:8000/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = "http://127.0.0.1:8000/api/mail";
-        //private static string outputFile = @"output\test.txt";
+        // Root directory variable is initialized in the ThisAddIn_Startup function
+        private static string RootDir;
 
         private LaunchRibbon taskPaneControl;
 
@@ -41,19 +42,13 @@ namespace PhishingDataCollector
 
             //CodeBase is the location of the ClickOnce deployment files
             Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
-            string ClickOnceLocation = Path.GetDirectoryName(uriCodeBase.LocalPath.ToString());
-            var uri = Path.Combine(ClickOnceLocation, "Resources", "dict", "it.dic");
+            RootDir = Path.GetDirectoryName(uriCodeBase.LocalPath.ToString()); ;  // ClickOnce folder - Release version
+            DotEnv.Load(Path.Combine(RootDir, ".env"));  // Load .env file - if existing
 
-            var fileStream = File.ReadAllText(uri);
+            Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
+            Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "output"));
+            Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "output", ".temp"));
 
-            //MessageBox.Show($"assemblyLocation : {assemblyLocation}, clickOnceLocation : {ClickOnceLocation}");
-            MessageBox.Show($" Array: {fileStream.Substring(0, 20)}"); // System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames())}");
-
-            string workingDir = ClickOnceLocation;
-            //string rootDir = Directory.GetParent(workingDir).Parent.FullName;  // Debug
-            string rootDir = workingDir;  // Release
-            var dotenv = Path.Combine(rootDir, "Outlook", ".env");
-            DotEnv.Load(dotenv);
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
@@ -190,7 +185,7 @@ namespace PhishingDataCollector
                 }*/
                 watch.Stop();
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
-                    "\nProcessate " + (progress - 1) + " email in " + watch.ElapsedMilliseconds/1000 + " s.\n" +
+                    "\nProcessate " + (progress - 1) + " email in " + watch.ElapsedMilliseconds/1000f + " secondi.\n" +
                     "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
                     "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",

@@ -453,8 +453,12 @@
     <Compile Include="Utils\TimeStamp.cs" />
     <Compile Include="Utils\URLsCollection.cs" />
     <Content Include=".gitignore" />
-    <Content Include="Resources\wordList\en_basic.txt" />
-    <Content Include="Resources\wordList\en_full.txt" />
+    <Content Include="Resources\wordList\en_basic.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\wordList\en_full.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <EmbeddedResource Include="LaunchRibbon.resx">
       <DependentUpon>LaunchRibbon.cs</DependentUpon>
     </EmbeddedResource>
@@ -468,7 +472,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <None Include=".env" />
+    <Content Include=".env">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include=".env.example" />
     <None Include="app.config" />
     <None Include="packages.config" />
@@ -484,79 +490,225 @@
     <Compile Include="ThisAddIn.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Content Include="Resources\Dict\de.aff" />
-    <Content Include="Resources\Dict\de.dic" />
-    <Content Include="Resources\Dict\en.aff" />
-    <Content Include="Resources\Dict\en.dic" />
-    <Content Include="Resources\Dict\es.aff" />
-    <Content Include="Resources\Dict\es.dic" />
-    <Content Include="Resources\Dict\fr.aff" />
-    <Content Include="Resources\Dict\fr.dic" />
-    <Content Include="Resources\Dict\it.aff" />
-    <Content Include="Resources\Dict\it.dic" />
-    <Content Include="Resources\Dict\pt.aff" />
-    <Content Include="Resources\Dict\pt.dic" />
-    <Content Include="Resources\POS\Models\Coref\acronyms" />
-    <Content Include="Resources\POS\Models\Coref\cmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\cmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\defmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\defmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\fmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\fmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\gen.fem" />
-    <Content Include="Resources\POS\Models\Coref\gen.mal" />
-    <Content Include="Resources\POS\Models\Coref\gen.nbin" />
-    <Content Include="Resources\POS\Models\Coref\imodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\imodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\num.nbin" />
-    <Content Include="Resources\POS\Models\Coref\plmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\plmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\pmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\pmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\pnmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\pnmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\Coref\sim.nbin" />
-    <Content Include="Resources\POS\Models\Coref\tmodel.nbin" />
-    <Content Include="Resources\POS\Models\Coref\tmodel_nr.nbin" />
-    <Content Include="Resources\POS\Models\EnglishChunk.nbin" />
-    <Content Include="Resources\POS\Models\EnglishPOS.nbin" />
-    <Content Include="Resources\POS\Models\EnglishSD.nbin" />
-    <Content Include="Resources\POS\Models\EnglishTok.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\date.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\location.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\money.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\organization.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\percentage.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\person.nbin" />
-    <Content Include="Resources\POS\Models\NameFind\time.nbin" />
-    <Content Include="Resources\POS\Models\organization.nbin" />
-    <Content Include="Resources\POS\Models\Parser\build.nbin" />
-    <Content Include="Resources\POS\Models\Parser\check.nbin" />
-    <Content Include="Resources\POS\Models\Parser\chunk.nbin" />
-    <Content Include="Resources\POS\Models\Parser\date.nbin" />
-    <Content Include="Resources\POS\Models\Parser\head_rules" />
-    <Content Include="Resources\POS\Models\Parser\tag.nbin" />
-    <Content Include="Resources\POS\Models\Parser\tagdict" />
-    <Content Include="Resources\POS\WordNet\dict\adj.exc" />
-    <Content Include="Resources\POS\WordNet\dict\adv.exc" />
-    <Content Include="Resources\POS\WordNet\dict\cntlist" />
-    <Content Include="Resources\POS\WordNet\dict\cntlist.rev" />
-    <Content Include="Resources\POS\WordNet\dict\data.adj" />
-    <Content Include="Resources\POS\WordNet\dict\data.adv" />
-    <Content Include="Resources\POS\WordNet\dict\data.noun" />
-    <Content Include="Resources\POS\WordNet\dict\data.verb" />
-    <Content Include="Resources\POS\WordNet\dict\frames.vrb" />
-    <Content Include="Resources\POS\WordNet\dict\index.adj" />
-    <Content Include="Resources\POS\WordNet\dict\index.adv" />
-    <Content Include="Resources\POS\WordNet\dict\index.noun" />
-    <Content Include="Resources\POS\WordNet\dict\index.sense" />
-    <Content Include="Resources\POS\WordNet\dict\index.verb" />
-    <Content Include="Resources\POS\WordNet\dict\log.grind.2.1" />
-    <Content Include="Resources\POS\WordNet\dict\noun.exc" />
-    <Content Include="Resources\POS\WordNet\dict\sentidx.vrb" />
-    <Content Include="Resources\POS\WordNet\dict\sents.vrb" />
-    <Content Include="Resources\POS\WordNet\dict\verb.exc" />
-    <Content Include="Resources\POS\WordNet\dict\verb.Framestext" />
+    <Content Include="Resources\Dict\de.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\de.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\en.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\en.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\es.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\es.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\fr.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\fr.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\it.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\it.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\pt.aff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Dict\pt.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\acronyms">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\cmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\cmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\defmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\defmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\fmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\fmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\gen.fem">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\gen.mal">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\gen.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\imodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\imodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\num.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\plmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\plmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\pmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\pmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\pnmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\pnmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\sim.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\tmodel.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Coref\tmodel_nr.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\EnglishChunk.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\EnglishPOS.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\EnglishSD.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\EnglishTok.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\date.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\location.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\money.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\organization.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\percentage.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\person.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\NameFind\time.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\organization.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\build.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\check.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\chunk.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\date.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\head_rules">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\tag.nbin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\Models\Parser\tagdict">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\adj.exc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\adv.exc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\cntlist">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\cntlist.rev">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\data.adj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\data.adv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\data.noun">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\data.verb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\frames.vrb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\index.adj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\index.adv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\index.noun">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\index.sense">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\index.verb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\log.grind.2.1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\noun.exc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\sentidx.vrb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\sents.vrb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\verb.exc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\POS\WordNet\dict\verb.Framestext">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="ThisAddIn.Designer.xml">
       <DependentUpon>ThisAddIn.cs</DependentUpon>
     </None>
@@ -566,13 +718,19 @@
     <AppDesigner Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\button_icon.png" />
+    <None Include="Resources\button_icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\button_icon_large.png" />
+    <None Include="Resources\button_icon_large.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\image-removebg-preview.png" />
+    <None Include="Resources\image-removebg-preview.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />
@@ -609,7 +767,7 @@
       <FlavorProperties GUID="{BAA0C2D2-18E2-41B9-852F-F413020CAA33}">
         <ProjectProperties HostName="Outlook" HostPackage="{29A7B9D7-A7F1-4328-8EF0-6B2D1A56B2C1}" OfficeVersion="15.0" VstxVersion="4.0" ApplicationType="Outlook" Language="cs" TemplatesPath="" DebugInfoExeName="#Software\Microsoft\Office\16.0\Outlook\InstallRoot\Path#outlook.exe" AddItemTemplatesGuid="{A58A78EB-1C92-4DDD-80CF-E8BD872ABFC4}" />
         <Host Name="Outlook" GeneratedCodeNamespace="PhishingDataCollector" PublishedHash="69C324AB27932AA2FBF2B7EA72250886FF164DE6" IconIndex="0">
-          <HostItem Name="ThisAddIn" Code="ThisAddIn.cs" CanonicalName="AddIn" CanActivate="false" IconIndex="1" Blueprint="ThisAddIn.Designer.xml" GeneratedCode="ThisAddIn.Designer.cs" PublishedHash="78647C35F2229BF7A1A355BCDA3F45E99CD04FC6" />
+          <HostItem Name="ThisAddIn" Code="ThisAddIn.cs" CanonicalName="AddIn" PublishedHash="78647C35F2229BF7A1A355BCDA3F45E99CD04FC6" CanActivate="false" IconIndex="1" Blueprint="ThisAddIn.Designer.xml" GeneratedCode="ThisAddIn.Designer.cs" />
         </Host>
       </FlavorProperties>
     </VisualStudio>

@@ -10,7 +10,7 @@
         {
             if (!File.Exists(filePath))
             {
-                MessageBox.Show($".env file not found in {filePath}!");
+                //MessageBox.Show($".env file not found in {filePath}!");
                 return;
             }
 
