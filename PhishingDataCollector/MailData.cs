@@ -241,7 +241,7 @@ namespace PhishingDataCollector
             LanguageDetector detector = new LanguageDetector();
             detector.AddAllLanguages();
             language = detector.Detect(_plainTextBody);
-            string dictPath = Environment.GetEnvironmentVariable("DICTIONARIES_PATH");
+            string dictPath = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "dict");
             if (_languages.Contains(language))  // Loads additional dictionary
             {
                 try
@@ -283,7 +283,7 @@ namespace PhishingDataCollector
             /*POS tagging*/
             if (language == "en")
             {
-                string base_path_pos_files = Environment.GetEnvironmentVariable("POSFILES_PATH");
+                string base_path_pos_files = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
                 string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
                 //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
                 EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
@@ -308,7 +308,7 @@ namespace PhishingDataCollector
                 vdb_articles_rate = n_articles / n_words;
 
                 // Rateos of words in basic and full vocabulary
-                string base_path_wordlists = Environment.GetEnvironmentVariable("WORDLIST_PATH");
+                string base_path_wordlists = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "wordList");
                 string basic_dict_path = Path.Combine(base_path_wordlists, "en_basic.txt");
                 //string full_dict_path = Path.Combine(base_path_wordlists, "en_full.txt");
                 //string[] full_dict = File.ReadAllLines(full_dict_path);
@@ -372,14 +372,14 @@ namespace PhishingDataCollector
                 if (!Regex.IsMatch(link, @"^(?:phone|mailto|tel|sms|callto):") && !string.IsNullOrEmpty(link))
                 {
                     URLData url = new URLData(link);
+                    // Will be executed in batch later 
+                    /*
                     VirusTotalScan alreadyAnalyzed = (VirusTotalScan)VirusTotalScans.Find(url.GetHostName());   // Checks if the link's hostname has already been analyzed
                     if (alreadyAnalyzed == null)
                     {
                         VirusTotalScan link_scan = new VirusTotalScan(url.GetHostName());
-                        /*
-                         * Disabled for testing 
-                         * VirusTotal_API.PerformAPICall(link_scan);
-                        */
+                        VirusTotal_API.PerformAPICall(link_scan);
+                        
                         VirusTotalScans.Add(link_scan);
                         url.SetVTScan(link_scan);
                     }
@@ -387,6 +387,7 @@ namespace PhishingDataCollector
                     {
                         url.SetVTScan(alreadyAnalyzed);
                     }
+                    */
                     MailURLs.Add(url);
                     //urls_in_mail.Add(url);
                     if (!binary_URL_bag_of_words)  // This feature is true if at least one link contains one of the keywords

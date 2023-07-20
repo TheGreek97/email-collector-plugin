@@ -2,13 +2,17 @@
 {
     using System;
     using System.IO;
+    using System.Windows.Forms;
 
     public static class DotEnv
     {
         public static void Load(string filePath)
         {
             if (!File.Exists(filePath))
+            {
+                //MessageBox.Show($".env file not found in {filePath}!");
                 return;
+            }
 
             foreach (var line in File.ReadAllLines(filePath))
             {
