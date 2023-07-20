@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Python.Runtime;
 using sun.swing;
 using javax.script;
+using com.sun.xml.@internal.ws.api.pipe;
 
 namespace PhishingDataCollector
 {
@@ -181,12 +182,12 @@ namespace PhishingDataCollector
                 voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
                 vdb_rate = (float)n_basic_voc_words / n_words;
             }
-            else if (language == "it")  // TODO: ITALIAN
+            else if (language == "it") 
             {
                 string[] pos_tags;
                 string py_file = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "posTagger_it.py");
 
-                // Python.net implementation to run the python script for POS tagging - TODO: use IronPython instead to exploit multi-threading
+                // Python.net implementation to run the python script for POS tagging
                 using (Py.GIL())
                 {
                     using (var scope = Py.CreateScope())
@@ -200,6 +201,30 @@ namespace PhishingDataCollector
                         pos_tags = result;
                     }  
                 }
+
+
+                /* TODO: make this work - ChatGPT generated code for IronPython (IronPython exploits multi-threading, differently from Python.net) 
+                using IronPython.Hosting;
+                using Microsoft.Scripting.Hosting;
+                
+                using (var pyScope = engine.CreateScope())
+                {
+                    dynamic os = pyScope.Import("os");
+                    dynamic sys = pyScope.Import("sys");
+                    sys.path.append(os.path.dirname(os.path.expanduser(py_file)));
+
+                    dynamic fromFile = pyScope.Import(Path.GetFileNameWithoutExtension(py_file));
+                    dynamic result = fromFile.GetPOSTags(body_text);
+
+                    // Convert the IronPython result to .NET type if necessary
+                    IList<object> posTagsList = (result as List).AsList();
+                    List<string> posTags = posTagsList.Cast<string>().ToList();
+                    // Or, if the result is a Python list of strings, you can directly use it like this:
+                    // List<string> posTags = new List<string>((IEnumerable<string>)result);
+
+                    // Now 'posTags' contains the processed data from the Python script
+                    // Use 'posTags' as needed in your C# code
+                }*/
 
                 int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
                 foreach (var tag in pos_tags)
