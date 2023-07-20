@@ -9,7 +9,7 @@ using System.Security;
 [assembly: AssemblyTitle("PhishingDataCollector")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("University of Bari")]
 [assembly: AssemblyProduct("PhishingDataCollector")]
 [assembly: AssemblyCopyright("Copyright ©  2023")]
 [assembly: AssemblyTrademark("")]
