@@ -35,8 +35,8 @@
         private void InitializeComponent()
         {
             this.tab1 = this.Factory.CreateRibbonTab();
-            this.button1 = this.Factory.CreateRibbonButton();
             this.group1 = this.Factory.CreateRibbonGroup();
+            this.button1 = this.Factory.CreateRibbonButton();
             this.tab1.SuspendLayout();
             this.group1.SuspendLayout();
             this.SuspendLayout();
@@ -44,24 +44,24 @@
             // tab1
             // 
             this.tab1.Groups.Add(this.group1);
-            this.tab1.Label = "Auriga";
+            this.tab1.Label = "Auriga S.p.A.";
             this.tab1.Name = "tab1";
+            // 
+            // group1
+            // 
+            this.group1.Items.Add(this.button1);
+            this.group1.Label = "Mail Data Collector";
+            this.group1.Name = "group1";
             // 
             // button1
             // 
             this.button1.Image = global::PhishingDataCollector.Properties.Resources.image_removebg_preview;
-            this.button1.Label = "Launch Data Collection";
+            this.button1.Label = "Inizia Collezionamento Dati";
             this.button1.Name = "button1";
             this.button1.ShowImage = true;
             this.button1.SuperTip = "Launches the Data Collection Process: Warning! It could take several minutes to c" +
     "omplete.";
             this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button1_Click);
-            // 
-            // group1
-            // 
-            this.group1.Items.Add(this.button1);
-            this.group1.Label = "Data Collection";
-            this.group1.Name = "group1";
             // 
             // LaunchRibbon
             // 

@@ -94,12 +94,6 @@ namespace PhishingDataCollector
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string [] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
-        private readonly string[] _languages = { "en", "es", "fr", "pt", "it", "de"};
-        private readonly string[] _phishyWords = { "account", "security", "user", "verify", "service", "valid", "required", "credentials",
-            "attention", "request", "suspended", "company", "bank", "deposit", "post", "money", "bank", "update", "verify"};
-        private readonly string[] _scammyWords = { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
-            "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" };
-        private readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex (@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -228,112 +222,28 @@ namespace PhishingDataCollector
             cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / n_lowercase_chars_body : 0;
 
             //Feature n_special_characters_body
-            n_special_characters_body = 0;
-            foreach (char c in _plainTextBody)
-            {
-                if (_specialCharacters.Contains(c))
-                {
-                    n_special_characters_body++;
-                }
-            }
+            n_special_characters_body = BodyFeatures.GetNSpecialChars(_plainTextBody);
 
             //Feature language
-            LanguageDetector detector = new LanguageDetector();
-            detector.AddAllLanguages();
-            language = detector.Detect(_plainTextBody);
-            string dictPath = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "dict");
-            if (_languages.Contains(language))  // Loads additional dictionary
-            {
-                try
-                {
-                    dictPath = Path.Combine(dictPath, language);
-                }
-                catch (Exception e)
-                {
-                    Debug.WriteLine(e);
-                }
-            }
-            else  // Default language is English
-            {
-                dictPath = Path.Combine(dictPath, "en");
-            }
+            language = BodyFeatures.GetLanguage(_plainTextBody);
+      
             //Feature automated_readability_index (based on the mail's detected language)
             automated_readability_index = BodyFeatures.GetReadabilityIndex(_plainTextBody, language);
-
-            // n_misspelled_words, n_phishy, n_scammy
-            n_misspelled_words = 0;
-            n_phishy = 0;
-            n_scammy = 0;
-            string wordsInBody = Regex.Replace(_plainTextBody, @"[^\w $€£]", " ");  // remove all non-words (keeps currency symbols)
-            string[] bodyTokens = wordsInBody.Split(' ');
-            using (Hunspell spellChecker = new Hunspell(dictPath + ".aff", dictPath + ".dic"))
-            {
-                foreach (string word in bodyTokens)
-                {
-                    if (!string.IsNullOrEmpty(word))
-                    {
-                        if (!spellChecker.Spell(word)) { n_misspelled_words++; }
-                        if (_phishyWords.Contains(word)) { n_phishy++; }
-                        if (_scammyWords.Contains(word)) { n_scammy++; }
-                    }
-                }
-            }
+      
+            //Feature body_size
             body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
 
-            /*POS tagging*/
-            if (language == "en")
-            {
-                string base_path_pos_files = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
-                string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
-                //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
-                EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
-                string[] pos_tags = posTagger.Tag(bodyTokens);
-                // pos tags are defined this way: https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
-                int n_adjectives=0, n_verbs=0, n_nouns=0, n_articles =0;
-                foreach (string tag in pos_tags)
-                {
-                    if (tag.StartsWith("J")) { n_adjectives++; }  // tag == JJ or JJR or JJS
-                    else if (tag.StartsWith("VB")) { n_verbs++; }  // tag == VB or VBD or VBG or VBN or VBP or VBZ  
-                    else if (tag.StartsWith("NN")) { n_nouns++; }  // tag == NN or NNS or NNP or NNPS
-                }
-                foreach (string word in bodyTokens)  // we don't have a tag for only articles
-                {
-                    string w  = word.ToLower();
-                    if (w == "the" || w == "a" || w == "an") { n_articles++; } 
-                }
-                int n_words = pos_tags.Length;
-                vdb_adjectives_rate = n_adjectives / n_words;
-                vdb_verbs_rate = n_verbs / n_words;
-                vdb_nouns_rate = n_nouns / n_words;
-                vdb_articles_rate = n_articles / n_words;
-
-                // Rateos of words in basic and full vocabulary
-                string base_path_wordlists = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "wordList");
-                string basic_dict_path = Path.Combine(base_path_wordlists, "en_basic.txt");
-                //string full_dict_path = Path.Combine(base_path_wordlists, "en_full.txt");
-                //string[] full_dict = File.ReadAllLines(full_dict_path);
-                //int voc_words = 0;
-                
-                string[] basic_dict = File.ReadAllLines(basic_dict_path);
-                int n_basic_voc_words = 0;
-
-                foreach (string word in bodyTokens)
-                {
-                    if (basic_dict.Contains(word)) { n_basic_voc_words++; }
-                    //if (full_dict.Contains(word)) { voc_words++; }
-                }
-                voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
-                vdb_rate = (float) n_basic_voc_words / n_words;
-            }
-            else {
-                // TODO italian language
-                voc_rate = 0;
-                vdb_rate = 0;
-                vdb_adjectives_rate = 0;
-                vdb_verbs_rate = 0;
-                vdb_nouns_rate = 0;
-                vdb_articles_rate = 0;
-            }
+            //Features: n_misspelled_words, n_phishy, n_scammy, vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate, voc_rate, vdb_rate
+            var word_features = BodyFeatures.GetWordsFeatures(_plainTextBody, language);
+            n_misspelled_words = word_features.n_misspelled_words;
+            n_phishy = word_features.n_phishy;
+            n_scammy = word_features.n_scammy;
+            vdb_adjectives_rate = word_features.vdb_adjectives_rate;
+            vdb_verbs_rate = word_features.vdb_verbs_rate;
+            vdb_nouns_rate = word_features.vdb_nouns_rate;
+            vdb_articles_rate = word_features.vdb_articles_rate;
+            voc_rate = word_features.voc_rate;
+            vdb_rate = word_features.vdb_rate;
         }
 
         /**

@@ -14,6 +14,7 @@ using System.Threading;
 using System.Windows.Threading;
 using Newtonsoft.Json.Serialization;
 using System.Security.Cryptography;
+using Python.Runtime;
 
 namespace PhishingDataCollector
 {
@@ -21,22 +22,26 @@ namespace PhishingDataCollector
     {
         //public static HttpClientHandler httpHandler = new HttpClientHandler();
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
-
+        private static bool InExecution = false;
+        private static int Progress;
+        private static int N_Mails_To_Process;
+        private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        //private static readonly bool _executeInParallel = true;
+        private static readonly bool _executeInParallel = true;  // this should always be set to true
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_TEST_URL = "http://127.0.0.1:8000/api/test";
-        private static readonly string ENDPOINT_UPLOAD_URL = "http://127.0.0.1:8000/api/mail";
+        private static readonly string ENDPOINT_BASE_URL = "http://127.0.0.1:8000/api/test";
+        private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
+        private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
         // Root directory variable is initialized in the ThisAddIn_Startup function
         private static string RootDir;
 
         private LaunchRibbon taskPaneControl;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
-        {
+        {      
             //Get the assembly information
             System.Reflection.Assembly assemblyInfo = System.Reflection.Assembly.GetExecutingAssembly();
-
+            log4net.Config.XmlConfigurator.Configure();
             //Location is where the assembly is run from 
             //string assemblyLocation = assemblyInfo.Location;
 
@@ -44,7 +49,6 @@ namespace PhishingDataCollector
             Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
             RootDir = Path.GetDirectoryName(uriCodeBase.LocalPath.ToString()); ;  // ClickOnce folder - Release version
             DotEnv.Load(Path.Combine(RootDir, ".env"));  // Load .env file - if existing
-
             Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "output"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "output", ".temp"));
@@ -55,16 +59,34 @@ namespace PhishingDataCollector
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
+            // Python engine
+            Runtime.PythonDLL = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "python311.dll");
+            PythonEngine.Initialize();
         }
 
         public static async void ExecuteAddIn()
         {
-            var dispatcher = Dispatcher.CurrentDispatcher;
+            MessageBox.Show("Folder location: " + RootDir);
+
+            if (InExecution)  // Prevent multiple instances running at the same time 
+            {
+                if (RuntimeWatch == null) {
+                    MessageBox.Show("Il processo è già in esecuzione, attendi di ricevere una notifica.");
+                    return;
+                }
+                long seconds_elapsed = RuntimeWatch.ElapsedMilliseconds / 1000;
+                MessageBox.Show("Il processo è già in esecuzione! Riceverai una notifica al termine. " +
+                    "\n" + (Progress - 1) + "/" + N_Mails_To_Process + " mail processate - In esecuzione da " + seconds_elapsed + " secondi." +
+                    "\nNon chiudere il client di posta durante l'operazione.", AppName);
+                return;
+            }
+            InExecution = true;
+            var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();
 
             // Get the mail list
-            List<MAPIFolder> mailFolders = new List<MAPIFolder> { 
+            List<MAPIFolder> mailFolders = new List<MAPIFolder> {
                 Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox),  // "inbox" folder
                 Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems),  // "deleted" folder
                 Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk) // "junk" folder
@@ -85,25 +107,15 @@ namespace PhishingDataCollector
 
             // Prompt to user
             var tot_n_mails_to_process = mailItems.Count();
-            var showMessage = "Sono presenti " + tot_n_mails_to_process + " mail da elaborare.\n" +
-            "Il client di posta elettronica potrebbe non essere disponibile per tutta la durata dell'esportazione.\n" +
-            "Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.\n" +
-            "Sei sicuro di voler iniziare il processo di esportazione?";
-            var dialogResult = MessageBox.Show(showMessage, AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (dialogResult == DialogResult.No)
-            {
-                return;
-            }
-           
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            int test_limiter = tot_n_mails_to_process;  // TEST ONLY: Limit the feature computation to N mails
-            foreach (MailItem m in mailItems)  // See both inbox and junk emails
+            int test_limiter = tot_n_mails_to_process;  // useful for TESTING purposes: limits the feature computation to N mails
+            foreach (MailItem m in mailItems)
             {
                 // Checks that the mail has not already been computed previously
-                if (! ExistingEmails.Contains(m.EntryID))
+                if (!ExistingEmails.Contains(m.EntryID))
                 {
-                    if (k < test_limiter)  
+                    if (k < test_limiter)
                     {
                         dispatcher.Invoke(() =>
                         {
@@ -114,11 +126,28 @@ namespace PhishingDataCollector
                     }
                 }
             }
-            MessageBox.Show("L'esportazione dei dati inizierà a breve. Sono presenti " + rawMailList.Count() + " mail da elaborare.\n" +
-            "È preferibile non interagire con la casella di posta elettronica per tutta la durata dell'esportazione.\n" +
-            "Al termine di quest'ultima, sarà mostrata una notifica. Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.", "Phishing Data Collector");/**/
+            int n_emails_to_process = rawMailList.Count();
+            if (n_emails_to_process > 0)
+            {
+                var showMessage = "Sono presenti " + n_emails_to_process + " mail da elaborare.\n" +
+                "Il client di posta elettronica potrebbe non essere disponibile per tutta la durata dell'elaborazione.\n" +
+                "Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.\n" +
+                "Si prega di NON chiudere il client di posta durante l'operazione.\n" +
+                "Iniziare il processo di esportazione?";
+                var dialogResult = MessageBox.Show(showMessage, AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (dialogResult == DialogResult.No)
+                {
+                    InExecution = false;
+                    return;
+                }
+            } else
+            {
+                MessageBox.Show("Non sono presenti email da elaborare.");
+                InExecution = false;
+                return;
+            }
 
-            var watch = Stopwatch.StartNew();
+            RuntimeWatch = Stopwatch.StartNew();
 
             var cts = new CancellationTokenSource();
             var po = new ParallelOptions
@@ -129,13 +158,13 @@ namespace PhishingDataCollector
 
             try
             {
-                int tot_n_mails = rawMailList.Count();
-                int progress = 1;
+                N_Mails_To_Process = rawMailList.Count();
+                Progress = 1;
                 int batchSize = 10;
-                int numBatches = (int)Math.Ceiling((double)tot_n_mails / batchSize);
-                //if (_executeInParallel){
-                await dispatcher.InvokeAsync(() =>
-                {
+                int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
+                if (_executeInParallel){
+                    await dispatcher.InvokeAsync(() =>
+                    {
                     for (int i = 0; i < numBatches; i++)
                     {
                         Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
@@ -143,7 +172,7 @@ namespace PhishingDataCollector
                             async m =>
                             {
                                 cts.Token.ThrowIfCancellationRequested();
-                                Debug.WriteLine("Processing mail with ID: " + m.EntryID, progress);
+                                Debug.WriteLine("Processing mail with ID: " + m.EntryID, Progress);
 
                                     MailData data = new MailData(m);
                                     // Extract features
@@ -152,40 +181,33 @@ namespace PhishingDataCollector
                                     {
                                         MailList.Add(data);
                                         Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                                        Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
-                                        /*if (tot_n_mails - progress == 0)
-                                        {
-                                            dispatcher.Invoke(() =>
-                                            {
-                                                SaveMails(MailList.ToArray());
-                                            });
-                                        }*/
-                                        progress++;
+                                        Debug.WriteLine("{0} Remaining", N_Mails_To_Process - Progress);
+                                        Progress++;
                                         SaveMail(data);
-                                        return progress;
+                                        return Progress;
                                     });
                                 }
                             );
                         }
-                    });
-                /*} else
+                    }, DispatcherPriority.ApplicationIdle);
+                } else  // Non-parallel computation
                 {
                     foreach (RawMail m in rawMailList) { 
                         MailData data = new MailData(m);
                         data.ComputeFeatures();
                         MailList.Add(data);
                         Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                        Debug.WriteLine("{0} Remaining", tot_n_mails - progress);
+                        Debug.WriteLine("{0} Remaining", N_Mails_To_Process - Progress);
                         dispatcher.Invoke(() =>
                         {
                             SaveMail(data);
                         });
-                        progress++;
+                        Progress++;
                     }
-                }*/
-                watch.Stop();
+                }
+                RuntimeWatch.Stop();
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
-                    "\nProcessate " + (progress - 1) + " email in " + watch.ElapsedMilliseconds/1000f + " secondi.\n" +
+                    "\nProcessate " + (Progress - 1) + " email in " + RuntimeWatch.ElapsedMilliseconds/1000f + " secondi.\n" +
                     "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
                     "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
@@ -200,23 +222,24 @@ namespace PhishingDataCollector
                     {
                         await dispatcher.InvokeAsync(async () =>
                         {
-                            watch.Restart();
+                            RuntimeWatch.Restart();
                             ExistingEmails = GetExistingEmails();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
                             bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"));
                             if (result)
                             {
-                                MessageBox.Show("I dati sono stati trasmessi con successo (in " + watch.ElapsedMilliseconds + " ms)! Grazie", AppName);
+                                MessageBox.Show("I dati sono stati trasmessi con successo (in " + RuntimeWatch.ElapsedMilliseconds + " ms)! Grazie", AppName);
                             }
                             else
                             {
                                 MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
                             }
-                        });
+                        }, DispatcherPriority.ApplicationIdle);
                     }
                     else
                     {
                         MessageBox.Show("Server temporaneamente non raggiungibile. Riprovare più tardi, grazie.", AppName);
+                        InExecution = false;
                         return;
                     }
                 }
@@ -235,6 +258,7 @@ namespace PhishingDataCollector
             finally
             {
                 cts.Dispose();
+                InExecution = false;
             }
             return;
         }
