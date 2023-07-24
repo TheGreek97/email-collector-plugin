@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Python.Runtime;
 using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
-
+using com.sun.istack.@internal.logging;
 
 namespace PhishingDataCollector
 {
@@ -65,6 +65,10 @@ namespace PhishingDataCollector
 
         public static string GetPlainTextFromHtml(string htmlText)
         {
+            if (string.IsNullOrEmpty(htmlText))
+            {
+                return "";
+            }
             string strippedString = "";
             bool insideTag = false;
             foreach (char let in htmlText)
@@ -118,6 +122,10 @@ namespace PhishingDataCollector
             float voc_rate, float vdb_rate) 
             GetWordsFeatures(string body_text, string language="")
         {
+            if (string.IsNullOrEmpty(body_text))
+            {
+                return (0, 0, 0, 0, 0, 0, 0, 0, 0);
+            }
             if (language == "") { language = GetLanguage(body_text); }
             int n_misspelled_words = 0, n_phishy = 0, n_scammy = 0;
             float vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate;
@@ -191,6 +199,7 @@ namespace PhishingDataCollector
                 // Python.net implementation to run the python script for POS tagging
                 using (Py.GIL())
                 {
+                    ThisAddIn.Logger.Info($"Processing POS tagging, body length: {body_text.Length} chars.");
                     using (var scope = Py.CreateScope())
                     {
                         //scope.Set("bodyTxt", body_text.ToPython());
@@ -200,7 +209,8 @@ namespace PhishingDataCollector
                         PyObject fromFile = Py.Import(Path.GetFileNameWithoutExtension(py_file));
                         dynamic result = fromFile.InvokeMethod("GetPOSTags", new PyObject[1] { body_text.ToPython() });
                         pos_tags = result;
-                    }  
+                    }
+                    ThisAddIn.Logger.Info($"Processed POS tagging.");
                 }
 
                 /* TODO: make this work - ChatGPT generated code for IronPython (IronPython exploits multi-threading, differently from Python.net) 

@@ -19,7 +19,7 @@ public static class FileUploader
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
     private static readonly int TIMEOUT = 2000;
 
-    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = ".json")
+    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = "") //".json")
     {   
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
