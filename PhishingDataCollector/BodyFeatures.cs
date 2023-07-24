@@ -11,9 +11,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Python.Runtime;
-using sun.swing;
-using javax.script;
-using com.sun.xml.@internal.ws.api.pipe;
+using IronPython.Hosting;
+using Microsoft.Scripting.Hosting;
+
 
 namespace PhishingDataCollector
 {
@@ -185,6 +185,7 @@ namespace PhishingDataCollector
             else if (language == "it") 
             {
                 string[] pos_tags;
+                pos_tags = new string[1]; // TODELETE
                 string py_file = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "posTagger_it.py");
 
                 // Python.net implementation to run the python script for POS tagging
@@ -202,29 +203,19 @@ namespace PhishingDataCollector
                     }  
                 }
 
-
                 /* TODO: make this work - ChatGPT generated code for IronPython (IronPython exploits multi-threading, differently from Python.net) 
-                using IronPython.Hosting;
-                using Microsoft.Scripting.Hosting;
+                var engine = IronPython.Hosting.Python.CreateEngine();
+                var pyScope = engine.CreateScope();
+                pyScope.SetVariable("bodyTxt", body_text);
+                pyScope = engine.ExecuteFile(py_file, pyScope);  // module "spacy" not found 
                 
-                using (var pyScope = engine.CreateScope())
-                {
-                    dynamic os = pyScope.Import("os");
-                    dynamic sys = pyScope.Import("sys");
-                    sys.path.append(os.path.dirname(os.path.expanduser(py_file)));
+                // ExecuteFile has returned the updated scope, where we can find the results (POSTags variable)
+                dynamic result = pyScope.GetVariable("POSTags");
 
-                    dynamic fromFile = pyScope.Import(Path.GetFileNameWithoutExtension(py_file));
-                    dynamic result = fromFile.GetPOSTags(body_text);
-
-                    // Convert the IronPython result to .NET type if necessary
-                    IList<object> posTagsList = (result as List).AsList();
-                    List<string> posTags = posTagsList.Cast<string>().ToList();
-                    // Or, if the result is a Python list of strings, you can directly use it like this:
-                    // List<string> posTags = new List<string>((IEnumerable<string>)result);
-
-                    // Now 'posTags' contains the processed data from the Python script
-                    // Use 'posTags' as needed in your C# code
-                }*/
+                // Convert the IronPython result to .NET type if necessary
+                IList<object> posTagsList = (result).AsList();
+                pos_tags = posTagsList.Cast<string>().ToArray();
+                */
 
                 int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
                 foreach (var tag in pos_tags)

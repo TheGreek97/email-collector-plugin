@@ -1,5 +1,9 @@
 import spacy
 
+if __name__ == "__main__":
+    POSTags = GetPOSTags(bodyTxt)
+
+
 def GetPOSTags (bodyTxt):
     # Load the Italian language model for spaCy
     nlp = spacy.load("it_core_news_sm")
