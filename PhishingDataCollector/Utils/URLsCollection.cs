@@ -6,7 +6,7 @@ public abstract class URLObject
 {
     public string Address { get; set; }
 
-    public URLObject (string server)
+    public URLObject(string server)
     {
         if (string.IsNullOrWhiteSpace(server))
         {
@@ -16,7 +16,8 @@ public abstract class URLObject
     }
 }
 
-public class URLsCollection : ICollection<URLObject> {
+public class URLsCollection : ICollection<URLObject>
+{
     public IEnumerator<URLObject> GetEnumerator()
     {
         return new URLObjectEnumerator(this);

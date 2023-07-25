@@ -16,5 +16,5 @@ namespace PhishingDataCollector.Utils
             return Math.Floor(diff.TotalSeconds);
         }
     }
-    
+
 }

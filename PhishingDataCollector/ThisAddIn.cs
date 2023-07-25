@@ -1,22 +1,20 @@
-﻿using System.Collections.Generic;
-using System.Text.Json;
-using System.IO;
-using System.Diagnostics;
-using Microsoft.Office.Interop.Outlook;
-using System.Text.RegularExpressions;
-using System.Net.Http;
-using System.Windows.Forms;
-using System;
-using System.Net;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Threading;
-using System.Windows.Threading;
-using Newtonsoft.Json.Serialization;
-using System.Security.Cryptography; 
-using Python.Runtime;
-using log4net;
+﻿using log4net;
 using log4net.Appender;
+using Microsoft.Office.Interop.Outlook;
+using Python.Runtime;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Windows.Threading;
 
 namespace PhishingDataCollector
 {
@@ -29,9 +27,9 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = false;  
+        private static readonly bool _executeInParallel = false;
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/"; // "http://127.0.0.1:8000/api/test";
+        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; //"http://127.0.0.1:8000";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
         private static readonly bool SAVE_FILE_NAME_SPACE = true;
@@ -43,7 +41,7 @@ namespace PhishingDataCollector
 
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
-        {      
+        {
             //Get the assembly information
             System.Reflection.Assembly assemblyInfo = System.Reflection.Assembly.GetExecutingAssembly();
             Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
@@ -54,7 +52,7 @@ namespace PhishingDataCollector
             DotEnv.Load(Path.Combine(RootDir, ".env"));  // Load .env file - if existing
 
             ConfigureLogger(RootDir);
-            
+
             Environment.SetEnvironmentVariable("ROOT_FOLDER", RootDir);
             Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "output"));
@@ -75,7 +73,8 @@ namespace PhishingDataCollector
         {
             if (InExecution)  // Prevent multiple instances running at the same time 
             {
-                if (RuntimeWatch == null) {
+                if (RuntimeWatch == null)
+                {
                     MessageBox.Show("Il processo è già in esecuzione, attendi di ricevere una notifica.");
                     return;
                 }
@@ -101,7 +100,8 @@ namespace PhishingDataCollector
             {
                 mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
             }
-            catch {
+            catch
+            {
                 Logger.Warn("Not an exchange account");
             }
 
@@ -138,7 +138,7 @@ namespace PhishingDataCollector
                 }
             }
             int n_emails_to_process = rawMailList.Count();
-            Logger.Info("Extracted data from "+ n_emails_to_process +" emails");
+            Logger.Info("Extracted data from " + n_emails_to_process + " emails");
 
             if (n_emails_to_process > 0)
             {
@@ -170,7 +170,8 @@ namespace PhishingDataCollector
                 Progress = 1;
                 int batchSize = 10;
                 int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
-                if (_executeInParallel){
+                if (_executeInParallel)
+                {
                     await dispatcher.InvokeAsync(() =>
                     {
                         Parallel.For(0, numBatches, i =>
@@ -198,15 +199,17 @@ namespace PhishingDataCollector
                                     }
                                     catch (System.Exception e)
                                     {
-                                        Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: "+e.Message);
+                                        Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                                     }
                                 }
                                 );
                         });
                     }, DispatcherPriority.ApplicationIdle);
-                } else  // Non-parallel computation
+                }
+                else  // Non-parallel computation
                 {
-                    foreach (RawMail m in rawMailList) {
+                    foreach (RawMail m in rawMailList)
+                    {
                         dispatcher.Invoke(() =>
                         {
                             MailData data = new MailData(m);
@@ -221,19 +224,19 @@ namespace PhishingDataCollector
                             }
                             catch (System.Exception e)
                             {
-                                Logger.Error("Problem processing mail with ID: " + data.GetID() +"\nError details: "+ e.Message);
+                                Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                             }
 
                         }, DispatcherPriority.ApplicationIdle);
                     }
                 }
                 RuntimeWatch.Stop();
-                    MessageBox.Show("Esportazione dei dati estratti dalle email completata!\n" + 
-                        (Progress > 1 ? $"Processate {Progress - 1} email in {RuntimeWatch.ElapsedMilliseconds / 1000f} secondi.\n" : "") +
-                    "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
-                    "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
-                    "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
-                    AppName);
+                MessageBox.Show("Esportazione dei dati estratti dalle email completata!\n" +
+                    (Progress > 1 ? $"Processate {Progress - 1} email in {RuntimeWatch.ElapsedMilliseconds / 1000f} secondi.\n" : "") +
+                "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
+                "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
+                "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
+                AppName);
 
                 // Data trasmission over HTTPS
                 try
@@ -247,7 +250,7 @@ namespace PhishingDataCollector
                             RuntimeWatch.Restart();
                             ExistingEmails = GetExistingEmails();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            string file_ext = SAVE_FILE_NAME_SPACE ? "" : ".json"; 
+                            string file_ext = SAVE_FILE_NAME_SPACE ? "" : ".json";
                             bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
@@ -257,6 +260,7 @@ namespace PhishingDataCollector
                             {
                                 MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
                             }
+                            InExecution = false;
                         }, DispatcherPriority.ApplicationIdle);
                     }
                     else
@@ -274,12 +278,12 @@ namespace PhishingDataCollector
             catch (System.Exception e)
             {
                 Logger.Error("(Main err): " + e);
-                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " +e.Message, AppName);
+                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " + e.Message, AppName);
+                InExecution = false;
             }
             finally
             {
                 cts.Dispose();
-                InExecution = false;
             }
             return;
         }
@@ -328,7 +332,7 @@ namespace PhishingDataCollector
                 }
             }
             attachments = attachments_list.ToArray();
-            
+
             RawMail rawMail = new RawMail(
                 id: mail.EntryID,
                 size: mail.Size,
@@ -343,7 +347,7 @@ namespace PhishingDataCollector
             return rawMail;
         }
 
-        private static string[] GetExistingEmails ()
+        private static string[] GetExistingEmails()
         {
             string[] email_names;
             try
@@ -363,13 +367,14 @@ namespace PhishingDataCollector
                     {
                         email_names[i] = email_names[i].TrimStart('0');
                     }
-                } else
+                }
+                else
                 {
                     email_names = Directory.EnumerateFiles(outputFolder)
                     .Select(Path.GetFileNameWithoutExtension)  // In this case the .json extension needs to be removed
                     .ToArray();
                 }
-                
+
             }
             catch (System.Exception ex)
             {
@@ -405,13 +410,14 @@ namespace PhishingDataCollector
                 if (SAVE_FILE_NAME_SPACE)
                 {
                     file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
-                } else
+                }
+                else
                 {
-                    file_name = mail.GetID()+".json";
-                } 
+                    file_name = mail.GetID() + ".json";
+                }
                 file_name = Path.Combine(outputFolder, file_name);
                 try
-                { 
+                {
                     using (StreamWriter writer = new StreamWriter(file_name))
                     {
                         string json = JsonSerializer.Serialize(mail, options);
@@ -446,7 +452,7 @@ namespace PhishingDataCollector
                     fa.File = logFileLocation;
                     fa.ActivateOptions();
                     break;
-                }   
+                }
             }
             Logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }

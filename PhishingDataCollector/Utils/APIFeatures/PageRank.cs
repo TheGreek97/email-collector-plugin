@@ -1,11 +1,10 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Newtonsoft.Json;
-using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
-using Newtonsoft.Json.Linq;
-using System.Threading.Tasks;
 
 namespace PhishingDataCollector
 {
@@ -14,12 +13,12 @@ namespace PhishingDataCollector
         public byte RankDecimal { set; get; }
         public int? RankAbsolute { set; get; }
 
-        public PageRank (string server) : base(server)
+        public PageRank(string server) : base(server)
         {
             SetToUnknown();
         }
         public PageRank(string server, byte rank_decimal, int webiste_traffic) : base(server)
-        { 
+        {
             RankDecimal = rank_decimal;
             RankAbsolute = webiste_traffic;
         }
@@ -32,8 +31,8 @@ namespace PhishingDataCollector
             return RankAbsolute;
         }
         public void SetToUnknown()
-        { 
-            RankDecimal = RankDecimal != 0 ? RankDecimal : (byte) 0;
+        {
+            RankDecimal = RankDecimal != 0 ? RankDecimal : (byte)0;
             RankAbsolute = RankAbsolute != null ? RankAbsolute : null;
         }
     }
@@ -69,7 +68,7 @@ namespace PhishingDataCollector
                 ["API-OPR"] = _api_key
             };
             var api_url = QueryHelpers.AddQueryString(_api_request_url, queryParameters);
-            
+
             try
             {
                 //if (ThisAddIn.HTTPCLIENT == null) ThisAddIn.HTTPCLIENT = new System.Net.Http.HttpClient();

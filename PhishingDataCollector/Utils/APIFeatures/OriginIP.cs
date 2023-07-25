@@ -1,12 +1,11 @@
-﻿using System;
+﻿using DnsClient;
+using Microsoft.AspNetCore.WebUtilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Newtonsoft.Json;
-using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
-using Newtonsoft.Json.Linq;
-using System.Threading.Tasks;
-using DnsClient;
 
 namespace PhishingDataCollector
 {
@@ -134,7 +133,7 @@ namespace PhishingDataCollector
                     }
                     else { originIP.SetToUnknown(); }
                 }
-                response.Dispose();   
+                response.Dispose();
             }
             catch (Exception ex) when (ex is DnsResponseException || ex is JsonException)
             {

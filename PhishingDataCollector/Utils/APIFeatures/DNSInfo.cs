@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using DnsClient;
+using System;
 using System.Diagnostics;
-using Newtonsoft.Json;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Net.Http.Headers;
-using Newtonsoft.Json.Linq;
-using DnsClient;
 using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace PhishingDataCollector
 {
@@ -19,7 +13,7 @@ namespace PhishingDataCollector
         public string DomainName { set; get; }
         public string RecordType { set; get; }
 
-        public DNSInfo (string server) : base(server)
+        public DNSInfo(string server) : base(server)
         {
             SetToUnknown();
         }
@@ -77,7 +71,7 @@ namespace PhishingDataCollector
                 domain.RecordType = record?.RecordType.ToString();
                 return;
             }
-            catch (Exception ex) when (ex is DnsResponseException || ex is ArgumentNullException) 
+            catch (Exception ex) when (ex is DnsResponseException || ex is ArgumentNullException)
             {
                 Debug.WriteLine("DNS Info exception:");
                 Debug.WriteLine(ex);

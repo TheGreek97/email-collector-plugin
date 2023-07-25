@@ -1,11 +1,11 @@
-﻿using System;
-using System.Diagnostics;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Net;
+using System;
+using System.Diagnostics;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Linq;
+using System.Net;
+using System.Text.RegularExpressions;
 
 public class VirusTotalScan : URLObject
 {
@@ -14,11 +14,12 @@ public class VirusTotalScan : URLObject
     public short NHarmless { set; get; }
     public short NUnknown { set; get; }
     public short NScanners { set; get; }
-    public bool IsUnkown { set;  get; }
+    public bool IsUnkown { set; get; }
     public bool IsAttachment { set; get; }
     public bool IsIPAddress { get; }
     public string Base64Address { get; set; }
-    public VirusTotalScan(string server) : base(server) {
+    public VirusTotalScan(string server) : base(server)
+    {
         IsIPAddress = Regex.IsMatch(server, "([\\d]{1,3}\\.){3}[\\d]{1,3}");
         GenerateBase64();
     }
@@ -37,14 +38,14 @@ public class VirusTotalScan : URLObject
         NMalicious = n_blacklist;
         GenerateBase64();
     }
-    
+
 
     public void SetToUnknown()
     {
         IsUnkown = true;
         NHarmless = 0;
     }
-    private void GenerateBase64 ()
+    private void GenerateBase64()
     {
         var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(Address);
         Base64Address = System.Convert.ToBase64String(plainTextBytes);
@@ -71,7 +72,8 @@ public class VirusTotalScansCollection : URLsCollection
 }
 
 
-public static class VirusTotal_API {
+public static class VirusTotal_API
+{
 
     private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__VIRUS_TOTAL");
     private const string _api_request_url = "https://www.virustotal.com/api/v3/";
@@ -80,12 +82,18 @@ public static class VirusTotal_API {
     {
         string requestURL;
         HttpWebRequest httpRequest;
-        if (vt.IsAttachment) {
-            requestURL = _api_request_url + "files/"+vt.Address;  // Address represents the MD5 checksum of the attachment 
-        } else {
-            if (vt.IsIPAddress) {
-                requestURL = _api_request_url + "ip_addresses/"+vt.Address;
-            } else {
+        if (vt.IsAttachment)
+        {
+            requestURL = _api_request_url + "files/" + vt.Address;  // Address represents the MD5 checksum of the attachment 
+        }
+        else
+        {
+            if (vt.IsIPAddress)
+            {
+                requestURL = _api_request_url + "ip_addresses/" + vt.Address;
+            }
+            else
+            {
                 requestURL = _api_request_url + "urls/" + vt.Base64Address;
             }
         }
@@ -104,12 +112,12 @@ public static class VirusTotal_API {
                     // Response structure for Files: https://developers.virustotal.com/reference/files
                     JObject jsonObject = (JObject)((JObject)((JObject)JsonConvert.DeserializeObject(resultString)).GetValue("data")).GetValue("attributes");
                     JObject scanners_results = (JObject)jsonObject.GetValue("last_analysis_results");
-                    vt.NScanners = (short) scanners_results.Children().Count();
+                    vt.NScanners = (short)scanners_results.Children().Count();
                     JObject total_votes = (JObject)jsonObject.GetValue("total_votes");
                     if (total_votes != null)
-                    { 
+                    {
                         vt.NHarmless = (short)total_votes.GetValue("harmless");
-                        vt.NMalicious = (short)total_votes.GetValue("malicious");  
+                        vt.NMalicious = (short)total_votes.GetValue("malicious");
                     }
                     else { vt.SetToUnknown(); }
                 }

@@ -1,19 +1,12 @@
-﻿using com.sun.tools.doclets.@internal.toolkit.util;
-using LanguageDetection;
+﻿using LanguageDetection;
 using NHunspell;
 using OpenNLP.Tools.PosTagger;
+using Python.Runtime;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using Python.Runtime;
-using IronPython.Hosting;
-using Microsoft.Scripting.Hosting;
-using com.sun.istack.@internal.logging;
 
 namespace PhishingDataCollector
 {
@@ -117,10 +110,10 @@ namespace PhishingDataCollector
         /* This function computes 9 features:
            n_misspelled_words, n_phishy (words), n_scammy (words), vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate, voc_rate, vdb_rate
          */
-        public static (int n_misspelled_words, int n_phishy, int n_scammy, 
-            float vdb_adjectives_rate, float vdb_verbs_rate, float vdb_nouns_rate, float vdb_articles_rate, 
-            float voc_rate, float vdb_rate) 
-            GetWordsFeatures(string body_text, string language="")
+        public static (int n_misspelled_words, int n_phishy, int n_scammy,
+            float vdb_adjectives_rate, float vdb_verbs_rate, float vdb_nouns_rate, float vdb_articles_rate,
+            float voc_rate, float vdb_rate)
+            GetWordsFeatures(string body_text, string language = "")
         {
             if (string.IsNullOrEmpty(body_text))
             {
@@ -190,7 +183,7 @@ namespace PhishingDataCollector
                 voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
                 vdb_rate = (float)n_basic_voc_words / n_words;
             }
-            else if (language == "it") 
+            else if (language == "it")
             {
                 string[] pos_tags;
                 pos_tags = new string[1]; // TODELETE
@@ -233,7 +226,7 @@ namespace PhishingDataCollector
                     if (tag == "ADJ" || tag == "A" || tag == "NO" || tag == "AP") { n_adjectives++; }  // A = adjective, NO = ordinal number, AP = possessive adjective
                     else if (tag == "VERB" || tag == "V" || tag == "AUX") { n_verbs++; }  // V = verb, AUX = auxiliary   
                     else if (tag == "NOUN" || tag == "PROPN" || tag == "SP" || tag == "S") { n_nouns++; }  // SP = proper noun, S = common noun
-                    else if (tag == "DET" || tag == "RD" || tag == "RI" ) { n_articles++; } // RD = definite article, RI = indefinite article
+                    else if (tag == "DET" || tag == "RD" || tag == "RI") { n_articles++; } // RD = definite article, RI = indefinite article
                 }
                 int n_words = pos_tags.Length;
                 vdb_adjectives_rate = n_adjectives / n_words;
@@ -252,7 +245,8 @@ namespace PhishingDataCollector
                 }
                 voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
                 vdb_rate = (float)n_basic_voc_words / n_words;
-            } else
+            }
+            else
             {
                 voc_rate = 0;
                 vdb_rate = 0;
@@ -262,7 +256,7 @@ namespace PhishingDataCollector
                 vdb_articles_rate = 0;
             }
 
-            return (n_misspelled_words, n_phishy, n_scammy, 
+            return (n_misspelled_words, n_phishy, n_scammy,
                 vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate,
                 voc_rate, vdb_rate);
         }

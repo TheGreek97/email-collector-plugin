@@ -2,7 +2,6 @@
 {
     using System;
     using System.IO;
-    using System.Windows.Forms;
 
     public static class DotEnv
     {
@@ -16,7 +15,7 @@
 
             foreach (var line in File.ReadAllLines(filePath))
             {
-                var parts = line.Split(new char [] {'='}, StringSplitOptions.RemoveEmptyEntries); 
+                var parts = line.Split(new char[] { '=' }, StringSplitOptions.RemoveEmptyEntries);
 
                 if (parts.Length != 2)
                     continue;
