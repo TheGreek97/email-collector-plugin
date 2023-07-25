@@ -1,6 +1,8 @@
-﻿using log4net;
+﻿using com.sun.tools.@internal.xjc.generator.util;
+using log4net;
 using log4net.Appender;
 using Microsoft.Office.Interop.Outlook;
+using Microsoft.Scripting.Generation;
 using Python.Runtime;
 using System;
 using System.Collections.Generic;
@@ -30,10 +32,10 @@ namespace PhishingDataCollector
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_BASE_URL = "http://127.0.0.1:8000";
+        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        private static readonly bool SAVE_FILE_NAME_SPACE = true;
+        private static readonly bool SAVE_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
         private LaunchRibbon taskPaneControl;
 
         // Variables initialized in the ThisAddIn_Startup function:
@@ -56,8 +58,8 @@ namespace PhishingDataCollector
 
             Environment.SetEnvironmentVariable("ROOT_FOLDER", RootDir);
             Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
-            Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "output"));
-            Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "output", ".temp"));
+            Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
+            Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
 
             taskPaneControl = Globals.Ribbons.LaunchRibbon;
             taskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
@@ -126,7 +128,7 @@ namespace PhishingDataCollector
             foreach (MailItem m in mailItems)
             {
                 string mail_ID = m.EntryID;
-                if (SAVE_FILE_NAME_SPACE)
+                if (SAVE_FILENAME_SPACE)
                 {
                     mail_ID = mail_ID.TrimStart('0');
                 }
@@ -162,6 +164,8 @@ namespace PhishingDataCollector
                 }
             }
 
+
+            /* Feature Extraction from Mails */
             RuntimeWatch = Stopwatch.StartNew();
 
             var cts = new CancellationTokenSource();
@@ -237,17 +241,36 @@ namespace PhishingDataCollector
                         }, DispatcherPriority.ApplicationIdle);
                     }
                 }
+                // feature extraction process ended
+                ExistingEmails = GetExistingEmails();  // retrieve all the computed emails 
+                string[] EmailsToUpload = GetEmailsToUpload(ExistingEmails);  // check which of them must be uploaded
                 RuntimeWatch.Stop();
-                MessageBox.Show("Esportazione dei dati estratti dalle email completata!\n" +
-                    (MailProgress > 1 ? $"Processate {MailProgress - 1} email in {Math.Round(RuntimeWatch.ElapsedMilliseconds / 1000f, 2)} secondi.\n" : "") +
-                "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
-                "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
-                "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
-                AppName);
+                string msg = "";
+                if (MailProgress > 1)  // 1 or more mails have been processed 
+                {
+                    msg = "Esportazione dei dati estratti dalle email completata!\n" +
+                        $"Processate {MailProgress - 1} email in {Math.Round(RuntimeWatch.ElapsedMilliseconds / 1000f, 2)} secondi.\n";
+                }
+                if (EmailsToUpload.Length > 0)  // 1 or more mails must be trasmitted to the endpoint 
+                {
+                    msg += "I dati (ricavati da " + EmailsToUpload.Length + " email) saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
+                    "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
+                    "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.";
+                    MessageBox.Show(msg, AppName);
+                } 
+                else  // No mails to transmit -> the program can be closed
+                {
+                    InExecution = false;
+                    MessageBox.Show("Tutti i dati sono già stati estratti e caricati sui nostri server. Grazie!\n" +
+                        "È comunque possibile ri-lanciare la procedura dopo aver ricevuto nuove email.", AppName);
+                    return;
+                }
+                
 
-                // Data trasmission over HTTPS
+                /* Data trasmission to the end-point over HTTP(S) */
                 try
                 {
+                    string[] successfullyUploadedMails;
                     UploadingFiles = true;
                     bool connectionOK = await FileUploader.TestConnection(ENDPOINT_TEST_URL);
 
@@ -256,18 +279,24 @@ namespace PhishingDataCollector
                         await dispatcher.InvokeAsync(async () =>
                         {
                             RuntimeWatch.Restart();
-                            ExistingEmails = GetExistingEmails();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            string file_ext = SAVE_FILE_NAME_SPACE ? "" : ".json";
-                            bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
+                            string file_ext = SAVE_FILENAME_SPACE ? "" : ".json";
+                            bool result;
+                            (result, successfullyUploadedMails) = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, EmailsToUpload, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
-                                MessageBox.Show("I dati sono stati trasmessi con successo (in " + RuntimeWatch.ElapsedMilliseconds + " ms)! Grazie", AppName);
+                                MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {RuntimeWatch.ElapsedMilliseconds} ms). Grazie!", AppName);
                             }
-                            else
+                            else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mail has been trasmitted
+                            {
+                                MessageBox.Show($"Problema nella trasmissione di {successfullyUploadedMails.Length - EmailsToUpload.Length} file su {EmailsToUpload.Length} totali ({successfullyUploadedMails.Length} file trasmessi correttamente)." +
+                                    $"\nTi preghiamo di riprovare più tardi.", AppName);
+                            }
+                            else  // if no mail has been trasmitted successfully
                             {
                                 MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
                             }
+                            SaveUploadedEmails(successfullyUploadedMails);
                             InExecution = false;
                             UploadingFiles = false;
                         }, DispatcherPriority.ApplicationIdle);
@@ -369,11 +398,11 @@ namespace PhishingDataCollector
                     Directory.CreateDirectory(outputFolder);
                     return new string[] { };
                 }
-                if (SAVE_FILE_NAME_SPACE)
+                if (SAVE_FILENAME_SPACE)
                 {
                     email_names = Directory.EnumerateFiles(outputFolder)
                     .Select(Path.GetFileName)
-                    .ToArray();  //FIXME
+                    .ToArray();
                     for (int i = 0; i < email_names.Length; i++)
                     {
                         email_names[i] = email_names[i].TrimStart('0');
@@ -394,6 +423,73 @@ namespace PhishingDataCollector
             }
             return email_names;
         }
+
+        private static string[] GetEmailsToUpload(string[] existingEmails)
+        {
+            string[] uploadedEmails;
+            try
+            {
+                string uploadedFolder = Path.Combine(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), "up");
+                if (!Directory.Exists(uploadedFolder))
+                {
+                    Directory.CreateDirectory(uploadedFolder);
+                    return existingEmails;
+                }
+                if (SAVE_FILENAME_SPACE)
+                {
+                    uploadedEmails = Directory.EnumerateFiles(uploadedFolder)
+                    .Select(Path.GetFileName)  // the files don't have the extension ".json"
+                    .ToArray();  
+                }
+                else
+                {
+                    uploadedEmails = Directory.EnumerateFiles(uploadedFolder)
+                    .Select(Path.GetFileNameWithoutExtension)  // In this case the .json extension needs to be removed
+                    .ToArray();
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                uploadedEmails = existingEmails;
+                Logger.Error($"GetEmailsToUpload: {ex.Message}");
+            }
+            return existingEmails.Except(uploadedEmails).ToArray();  // subtraction set between Existing emails and Uploaded emails
+        }
+
+        private static void SaveUploadedEmails(string[] uploadedEmails, string ext = ".json")
+        {
+            try
+            {
+                string outputFolder = Environment.GetEnvironmentVariable("OUTPUT_FOLDER");
+                string uploadedFolder = Path.Combine(outputFolder, "up");
+                if (!Directory.Exists(uploadedFolder))
+                {
+                    Directory.CreateDirectory(uploadedFolder);
+                }
+                foreach (var file in uploadedEmails)
+                {
+                    string file_name = file;
+                    if (!SAVE_FILENAME_SPACE)  // if the files have the extension, add it
+                    {
+                        file_name += ".json";
+                    }
+                    /* To save space on disk we can avoid copying the files' content
+                    string fileToMove = Path.Combine(outputFolder, file_name);
+                    string moveTo = Path.Combine(uploadedFolder, file_name);
+                    File.Copy(fileToMove, moveTo);
+                    */
+                    File.Create(Path.Combine(uploadedFolder, file_name)).Dispose();  // creates an empty file and closes its stream
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Error($"SaveUploadedEmails: {ex.Message}");
+                Debug.WriteLine($"SaveUploadedEmails: {ex.Message}");
+            }
+        }
+
 
         // Wrapper for saving 1 email through SaveMails
         private static void SaveMail(MailData mail, string outputFolder = null)
@@ -418,7 +514,7 @@ namespace PhishingDataCollector
             foreach (MailData mail in mails)
             {
                 string file_name;
-                if (SAVE_FILE_NAME_SPACE)
+                if (SAVE_FILENAME_SPACE)
                 {
                     file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
                 }
