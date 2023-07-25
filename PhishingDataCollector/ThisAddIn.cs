@@ -13,8 +13,10 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
 using Newtonsoft.Json.Serialization;
-using System.Security.Cryptography;
+using System.Security.Cryptography; 
 using Python.Runtime;
+using log4net;
+using log4net.Appender;
 
 namespace PhishingDataCollector
 {
@@ -27,28 +29,33 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = true;  // this should always be set to true
+        private static readonly bool _executeInParallel = false;  
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_BASE_URL = "http://127.0.0.1:8000/api/test";
+        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/"; // "http://127.0.0.1:8000/api/test";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        // Root directory variable is initialized in the ThisAddIn_Startup function
+        private static readonly bool SAVE_FILE_NAME_SPACE = true;
+        private LaunchRibbon taskPaneControl;
+
+        // Variables initialized in the ThisAddIn_Startup function:
+        public static ILog Logger;
         private static string RootDir;
 
-        private LaunchRibbon taskPaneControl;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {      
             //Get the assembly information
             System.Reflection.Assembly assemblyInfo = System.Reflection.Assembly.GetExecutingAssembly();
-            log4net.Config.XmlConfigurator.Configure();
+            Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
             //Location is where the assembly is run from 
             //string assemblyLocation = assemblyInfo.Location;
-
             //CodeBase is the location of the ClickOnce deployment files
-            Uri uriCodeBase = new Uri(assemblyInfo.CodeBase);
             RootDir = Path.GetDirectoryName(uriCodeBase.LocalPath.ToString()); ;  // ClickOnce folder - Release version
             DotEnv.Load(Path.Combine(RootDir, ".env"));  // Load .env file - if existing
+
+            ConfigureLogger(RootDir);
+            
+            Environment.SetEnvironmentVariable("ROOT_FOLDER", RootDir);
             Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "output"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "output", ".temp"));
@@ -66,8 +73,6 @@ namespace PhishingDataCollector
 
         public static async void ExecuteAddIn()
         {
-            MessageBox.Show("Folder location: " + RootDir);
-
             if (InExecution)  // Prevent multiple instances running at the same time 
             {
                 if (RuntimeWatch == null) {
@@ -81,6 +86,7 @@ namespace PhishingDataCollector
                 return;
             }
             InExecution = true;
+            Logger.Info("Add-in executed");
             var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();
@@ -96,7 +102,7 @@ namespace PhishingDataCollector
                 mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
             }
             catch {
-                Debug.WriteLine("Not an exchange account");
+                Logger.Warn("Not an exchange account");
             }
 
             List<MailItem> mailItems = new List<MailItem>();
@@ -112,8 +118,13 @@ namespace PhishingDataCollector
             int test_limiter = tot_n_mails_to_process;  // useful for TESTING purposes: limits the feature computation to N mails
             foreach (MailItem m in mailItems)
             {
+                string mail_ID = m.EntryID;
+                if (SAVE_FILE_NAME_SPACE)
+                {
+                    mail_ID = mail_ID.TrimStart('0');
+                }
                 // Checks that the mail has not already been computed previously
-                if (!ExistingEmails.Contains(m.EntryID))
+                if (!ExistingEmails.Contains(mail_ID))
                 {
                     if (k < test_limiter)
                     {
@@ -127,11 +138,13 @@ namespace PhishingDataCollector
                 }
             }
             int n_emails_to_process = rawMailList.Count();
+            Logger.Info("Extracted data from "+ n_emails_to_process +" emails");
+
             if (n_emails_to_process > 0)
             {
                 var showMessage = "Sono presenti " + n_emails_to_process + " mail da elaborare.\n" +
-                "Il client di posta elettronica potrebbe non essere disponibile per tutta la durata dell'elaborazione.\n" +
-                "Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.\n" +
+                "Il client di posta elettronica potrebbe subire rallentamenti per tutta la durata dell'elaborazione.\n" +
+                "Il processo potrebbe durare diversi minuti, in base al numero di email e alla potenza di questo sistema.\n" +
                 "Si prega di NON chiudere il client di posta durante l'operazione.\n" +
                 "Iniziare il processo di esportazione?";
                 var dialogResult = MessageBox.Show(showMessage, AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -140,11 +153,6 @@ namespace PhishingDataCollector
                     InExecution = false;
                     return;
                 }
-            } else
-            {
-                MessageBox.Show("Non sono presenti email da elaborare.");
-                InExecution = false;
-                return;
             }
 
             RuntimeWatch = Stopwatch.StartNew();
@@ -165,49 +173,63 @@ namespace PhishingDataCollector
                 if (_executeInParallel){
                     await dispatcher.InvokeAsync(() =>
                     {
-                    for (int i = 0; i < numBatches; i++)
-                    {
-                        Debug.WriteLine("Batch {0}/{1}", i + 1, numBatches);
-                        Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
-                            async m =>
-                            {
-                                cts.Token.ThrowIfCancellationRequested();
-                                Debug.WriteLine("Processing mail with ID: " + m.EntryID, Progress);
+                        Parallel.For(0, numBatches, i =>
+                        {
+                            Logger.Info("Batch " + (i + 1) + "/" + numBatches);
+                            Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
+                                async m =>
+                                {
+                                    cts.Token.ThrowIfCancellationRequested();
+                                    Logger.Info("Processing mail with ID: " + m.EntryID);
 
                                     MailData data = new MailData(m);
                                     // Extract features
-                                    int completed = await Task.Run(() => data.ComputeFeatures()).
-                                    ContinueWith((prevTask) =>
+                                    try
                                     {
-                                        MailList.Add(data);
-                                        Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                                        Debug.WriteLine("{0} Remaining", N_Mails_To_Process - Progress);
-                                        Progress++;
-                                        SaveMail(data);
-                                        return Progress;
-                                    });
+                                        int completed = await Task.Run(() => data.ComputeFeatures()).
+                                        ContinueWith((prevTask) =>
+                                        {
+                                            MailList.Add(data);
+                                            SaveMail(data);
+                                            Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - Progress} remaining.");
+                                            Progress++;
+                                            return Progress;
+                                        });
+                                    }
+                                    catch (System.Exception e)
+                                    {
+                                        Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: "+e.Message);
+                                    }
                                 }
-                            );
-                        }
+                                );
+                        });
                     }, DispatcherPriority.ApplicationIdle);
                 } else  // Non-parallel computation
                 {
-                    foreach (RawMail m in rawMailList) { 
-                        MailData data = new MailData(m);
-                        data.ComputeFeatures();
-                        MailList.Add(data);
-                        Debug.WriteLine("Processed mail with ID: " + data.GetID());
-                        Debug.WriteLine("{0} Remaining", N_Mails_To_Process - Progress);
+                    foreach (RawMail m in rawMailList) {
                         dispatcher.Invoke(() =>
                         {
-                            SaveMail(data);
-                        });
-                        Progress++;
+                            MailData data = new MailData(m);
+                            try
+                            {
+                                //int completed = await Task.Run(() => data.ComputeFeatures()).ContinueWith((task) => { return 1; } );
+                                data.ComputeFeatures();
+                                MailList.Add(data);
+                                SaveMail(data);
+                                Progress++;
+                                Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - Progress} remaining.");
+                            }
+                            catch (System.Exception e)
+                            {
+                                Logger.Error("Problem processing mail with ID: " + data.GetID() +"\nError details: "+ e.Message);
+                            }
+
+                        }, DispatcherPriority.ApplicationIdle);
                     }
                 }
                 RuntimeWatch.Stop();
-                MessageBox.Show("Esportazione dei dati estratti dalle email completata!" +
-                    "\nProcessate " + (Progress - 1) + " email in " + RuntimeWatch.ElapsedMilliseconds/1000f + " secondi.\n" +
+                    MessageBox.Show("Esportazione dei dati estratti dalle email completata!\n" + 
+                        (Progress > 1 ? $"Processate {Progress - 1} email in {RuntimeWatch.ElapsedMilliseconds / 1000f} secondi.\n" : "") +
                     "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
                     "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
@@ -225,7 +247,8 @@ namespace PhishingDataCollector
                             RuntimeWatch.Restart();
                             ExistingEmails = GetExistingEmails();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"));
+                            string file_ext = SAVE_FILE_NAME_SPACE ? "" : ".json"; 
+                            bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
                                 MessageBox.Show("I dati sono stati trasmessi con successo (in " + RuntimeWatch.ElapsedMilliseconds + " ms)! Grazie", AppName);
@@ -250,9 +273,7 @@ namespace PhishingDataCollector
             }
             catch (System.Exception e)
             {
-                Debug.WriteLine("Errore esterno:");
-                Debug.WriteLine(e);
-                Debug.WriteLine(e.StackTrace);
+                Logger.Error("(Main err): " + e);
                 MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " +e.Message, AppName);
             }
             finally
@@ -285,17 +306,15 @@ namespace PhishingDataCollector
             }
             catch (System.Runtime.InteropServices.COMException err)
             {
-                Debug.WriteLine("Add-in COMException: ");
                 mail_headers = new string[0];
-                Debug.WriteLine($"{err.Message}");
+                Logger.Error($"Add-in COMException: {err.Message}");
             }
             catch (System.Exception err)
             {
-                Debug.WriteLine("Add-in Generic Exception: ");
                 mail_headers = new string[0];
-                Debug.WriteLine($"{err.Message}");
+                Logger.Error($"Add-in GenericException: {err.Message}");
             }
-            
+
             // Get attachments representation from MailItem (Hash)
             AttachmentData[] attachments;
             List<AttachmentData> attachments_list = new List<AttachmentData>();
@@ -329,13 +348,33 @@ namespace PhishingDataCollector
             string[] email_names;
             try
             {
-                email_names = Directory.EnumerateFiles(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
-                    .Select(Path.GetFileNameWithoutExtension).ToArray();
+                var outputFolder = Environment.GetEnvironmentVariable("OUTPUT_FOLDER");
+                if (!Directory.Exists(outputFolder))
+                {
+                    Directory.CreateDirectory(outputFolder);
+                    return new string[] { };
+                }
+                if (SAVE_FILE_NAME_SPACE)
+                {
+                    email_names = Directory.EnumerateFiles(outputFolder)
+                    .Select(Path.GetFileName)
+                    .ToArray();  //FIXME
+                    for (int i = 0; i < email_names.Length; i++)
+                    {
+                        email_names[i] = email_names[i].TrimStart('0');
+                    }
+                } else
+                {
+                    email_names = Directory.EnumerateFiles(outputFolder)
+                    .Select(Path.GetFileNameWithoutExtension)  // In this case the .json extension needs to be removed
+                    .ToArray();
+                }
+                
             }
             catch (System.Exception ex)
             {
                 email_names = new string[] { };
-                Debug.WriteLine(ex);
+                Logger.Error($"GetExistingEmails: {ex.Message}");
             }
             return email_names;
         }
@@ -362,20 +401,54 @@ namespace PhishingDataCollector
             };
             foreach (MailData mail in mails)
             {
-                using (StreamWriter writer = new StreamWriter(Path.Combine(outputFolder, mail.GetID()+".json")))  //saves in folder/id.json
+                string file_name;
+                if (SAVE_FILE_NAME_SPACE)
                 {
-                    try
+                    file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
+                } else
+                {
+                    file_name = mail.GetID()+".json";
+                } 
+                file_name = Path.Combine(outputFolder, file_name);
+                try
+                { 
+                    using (StreamWriter writer = new StreamWriter(file_name))
                     {
                         string json = JsonSerializer.Serialize(mail, options);
                         writer.WriteLine(json);
+                        writer.Close();
                     }
-                    catch (ArgumentException err)
-                    {
-                        Debug.WriteLine(err);
-                    }
-                    writer.Close();
+                }
+                catch (PathTooLongException)
+                {
+                    Logger.Error($"SaveMails PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
+        }
+
+        private void ConfigureLogger(string log_base_path)
+        {
+            log4net.Config.XmlConfigurator.Configure();
+            log4net.Repository.Hierarchy.Hierarchy h = (log4net.Repository.Hierarchy.Hierarchy)LogManager.GetRepository();
+            foreach (IAppender a in h.Root.Appenders)
+            {
+                if (a is FileAppender)
+                {
+                    FileAppender fa = (FileAppender)a;
+                    // Programmatically set this to the desired location here
+                    string logFileLocation = Path.Combine(log_base_path, "logs", "MailDataCollector.log");
+
+                    // Uncomment the lines below if you want to retain the base file name
+                    // and change the folder name...
+                    //FileInfo fileInfo = new FileInfo(fa.File);
+                    //logFileLocation = string.Format(@"C:\MySpecialFolder\{0}", fileInfo.Name);
+
+                    fa.File = logFileLocation;
+                    fa.ActivateOptions();
+                    break;
+                }   
+            }
+            Logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
