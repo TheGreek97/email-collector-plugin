@@ -14,7 +14,7 @@ public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
-    private static readonly int TIMEOUT = 2000;
+    private static readonly int TIMEOUT = 20000;  // 20 seconds
 
     public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName = ".\\", string fileExt = "")
     {
@@ -48,10 +48,9 @@ public static class FileUploader
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
 
             var bag = new ConcurrentBag<object>();
+            CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
             await chunks.ParallelForEachAsync(async mailChunk =>
             {
-                CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
-
                 // Build the request body
                 using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
                 {
@@ -65,17 +64,16 @@ public static class FileUploader
                     {
                         var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
                         bag.Add(response);
-                        Debug.WriteLine(response.StatusCode);
+                        Debug.WriteLine("Response status code: " + response.StatusCode);
                         if (!response.IsSuccessStatusCode)
                         {
                             errors = true;
                         }
                     }
-                    catch
+                    catch (Exception e)
                     {
+                        Debug.WriteLine(e);
                         errors = true;
-                        cts.Cancel();
-                        return;
                     }
                 }
             }, maxDegreeOfParallelism: 10);
@@ -85,9 +83,14 @@ public static class FileUploader
         {
             Debug.WriteLine("Error while uploading the files ");
             Debug.WriteLine(ex);
-            _httpClient.Dispose();
-            _httpClient = new HttpClient();
-            cts.Cancel();
+            try
+            {
+                _httpClient.Dispose();
+            } // catch (ObjectDisposedException)
+            finally
+            {
+                _httpClient = new HttpClient();
+            }
             errors = true;
         }
         return !errors;

@@ -461,8 +461,8 @@ namespace PhishingDataCollector
             {
                 foreach (AttachmentData att in _mailAttachments)
                 {
-                    VirusTotalScan link_scan = new VirusTotalScan(att.SHA256, isAttachment: true);
-                    VirusTotal_API.PerformAPICall(link_scan);
+                    // VirusTotalScan link_scan = new VirusTotalScan(att.SHA256, isAttachment: true);  Not computed realtime 
+                    // VirusTotal_API.PerformAPICall(link_scan);  Not computed realtime 
                     switch (att.GetAttachmentType())
                     {
                         case "image": n_image_attachments++; break;
@@ -472,7 +472,8 @@ namespace PhishingDataCollector
                         case "video": n_video_attachments++; break;
                     }
                     att_sizes[i] = att.Size;
-                    if (link_scan.NMalicious > 0)
+                    /* Not computed realtime 
+                    if (link_scan.NMalicious > 0) 
                     {
                         vt_a_positives++;
                         vt_a_maximum = link_scan.NMalicious > vt_a_maximum ? link_scan.NMalicious : vt_a_maximum;
@@ -481,11 +482,11 @@ namespace PhishingDataCollector
                     {
                         if (link_scan.NHarmless > 0) { vt_a_clean++; }  // if there's at least 1 "harmless" vote, we can consider it clean
                         else { vt_a_unknown++; }  // otherwise, the attachment is unknown to VirusTotal
-                    }
+                    }*/
                     i++;
                 }
                 attachments_size = att_sizes.Average();
-                vt_a_rate = vt_a_positives / n_attachments;
+                // vt_a_rate = vt_a_positives / n_attachments;  Not computed realtime 
             }
         }
     }

@@ -23,13 +23,14 @@ namespace PhishingDataCollector
         //public static HttpClientHandler httpHandler = new HttpClientHandler();
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         private static bool InExecution = false;
-        private static int Progress;
+        private static bool UploadingFiles = false;
+        private static int MailProgress;
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; //"http://127.0.0.1:8000";
+        private static readonly string ENDPOINT_BASE_URL = "http://127.0.0.1:8000";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
         private static readonly bool SAVE_FILE_NAME_SPACE = true;
@@ -78,9 +79,15 @@ namespace PhishingDataCollector
                     MessageBox.Show("Il processo è già in esecuzione, attendi di ricevere una notifica.");
                     return;
                 }
-                long seconds_elapsed = RuntimeWatch.ElapsedMilliseconds / 1000;
-                MessageBox.Show("Il processo è già in esecuzione! Riceverai una notifica al termine. " +
-                    "\n" + (Progress - 1) + "/" + N_Mails_To_Process + " mail processate - In esecuzione da " + seconds_elapsed + " secondi." +
+                if (UploadingFiles)
+                {
+                    MessageBox.Show("Il processo è già in esecuzione! I dati sono in fase di caricamento verso i nostri server. Riceverai una notifica al termine." +
+                    "\nNon chiudere il client di posta durante l'operazione.", AppName);
+                    return;
+                }
+                long seconds_elapsed = RuntimeWatch.ElapsedMilliseconds / 1000;  // int value
+                MessageBox.Show("Il processo è già in esecuzione! Riceverai una notifica al termine." +
+                    "\n" + (MailProgress - 1) + "/" + N_Mails_To_Process + " mail processate - In esecuzione da " + seconds_elapsed + " secondi." +
                     "\nNon chiudere il client di posta durante l'operazione.", AppName);
                 return;
             }
@@ -167,7 +174,7 @@ namespace PhishingDataCollector
             try
             {
                 N_Mails_To_Process = rawMailList.Count();
-                Progress = 1;
+                MailProgress = 1;
                 int batchSize = 10;
                 int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
                 if (_executeInParallel)
@@ -192,9 +199,9 @@ namespace PhishingDataCollector
                                         {
                                             MailList.Add(data);
                                             SaveMail(data);
-                                            Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - Progress} remaining.");
-                                            Progress++;
-                                            return Progress;
+                                            Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
+                                            MailProgress++;
+                                            return MailProgress;
                                         });
                                     }
                                     catch (System.Exception e)
@@ -219,8 +226,8 @@ namespace PhishingDataCollector
                                 data.ComputeFeatures();
                                 MailList.Add(data);
                                 SaveMail(data);
-                                Progress++;
-                                Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - Progress} remaining.");
+                                MailProgress++;
+                                Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
                             }
                             catch (System.Exception e)
                             {
@@ -232,7 +239,7 @@ namespace PhishingDataCollector
                 }
                 RuntimeWatch.Stop();
                 MessageBox.Show("Esportazione dei dati estratti dalle email completata!\n" +
-                    (Progress > 1 ? $"Processate {Progress - 1} email in {RuntimeWatch.ElapsedMilliseconds / 1000f} secondi.\n" : "") +
+                    (MailProgress > 1 ? $"Processate {MailProgress - 1} email in {Math.Round(RuntimeWatch.ElapsedMilliseconds / 1000f, 2)} secondi.\n" : "") +
                 "I dati saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
                 "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                 "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.",
@@ -241,6 +248,7 @@ namespace PhishingDataCollector
                 // Data trasmission over HTTPS
                 try
                 {
+                    UploadingFiles = true;
                     bool connectionOK = await FileUploader.TestConnection(ENDPOINT_TEST_URL);
 
                     if (connectionOK)
@@ -261,12 +269,14 @@ namespace PhishingDataCollector
                                 MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName);
                             }
                             InExecution = false;
+                            UploadingFiles = false;
                         }, DispatcherPriority.ApplicationIdle);
                     }
                     else
                     {
                         MessageBox.Show("Server temporaneamente non raggiungibile. Riprovare più tardi, grazie.", AppName);
                         InExecution = false;
+                        UploadingFiles = false;
                         return;
                     }
                 }
@@ -280,6 +290,7 @@ namespace PhishingDataCollector
                 Logger.Error("(Main err): " + e);
                 MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " + e.Message, AppName);
                 InExecution = false;
+                UploadingFiles = false;
             }
             finally
             {
