@@ -34,6 +34,7 @@ namespace PhishingDataCollector
         private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/"; // "http://127.0.0.1:8000/api/test";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
+        private static readonly bool SAVE_FILE_NAME_SPACE = true;
         private LaunchRibbon taskPaneControl;
 
         // Variables initialized in the ThisAddIn_Startup function:
@@ -117,8 +118,13 @@ namespace PhishingDataCollector
             int test_limiter = tot_n_mails_to_process;  // useful for TESTING purposes: limits the feature computation to N mails
             foreach (MailItem m in mailItems)
             {
+                string mail_ID = m.EntryID;
+                if (SAVE_FILE_NAME_SPACE)
+                {
+                    mail_ID = mail_ID.TrimStart('0');
+                }
                 // Checks that the mail has not already been computed previously
-                if (!ExistingEmails.Contains(m.EntryID))
+                if (!ExistingEmails.Contains(mail_ID))
                 {
                     if (k < test_limiter)
                     {
@@ -138,7 +144,7 @@ namespace PhishingDataCollector
             {
                 var showMessage = "Sono presenti " + n_emails_to_process + " mail da elaborare.\n" +
                 "Il client di posta elettronica potrebbe subire rallentamenti per tutta la durata dell'elaborazione.\n" +
-                "Il processo potrebbe durare più di un'ora, in base al numero di email e alla potenza di questo sistema.\n" +
+                "Il processo potrebbe durare diversi minuti, in base al numero di email e alla potenza di questo sistema.\n" +
                 "Si prega di NON chiudere il client di posta durante l'operazione.\n" +
                 "Iniziare il processo di esportazione?";
                 var dialogResult = MessageBox.Show(showMessage, AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -241,7 +247,8 @@ namespace PhishingDataCollector
                             RuntimeWatch.Restart();
                             ExistingEmails = GetExistingEmails();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"));
+                            string file_ext = SAVE_FILE_NAME_SPACE ? "" : ".json"; 
+                            bool result = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, ExistingEmails, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
                                 MessageBox.Show("I dati sono stati trasmessi con successo (in " + RuntimeWatch.ElapsedMilliseconds + " ms)! Grazie", AppName);
@@ -341,9 +348,28 @@ namespace PhishingDataCollector
             string[] email_names;
             try
             {
-                email_names = Directory.EnumerateFiles(Environment.GetEnvironmentVariable("OUTPUT_FOLDER"))
-                    .Select(Path.GetFileName)//Path.GetFileNameWithoutExtension)
+                var outputFolder = Environment.GetEnvironmentVariable("OUTPUT_FOLDER");
+                if (!Directory.Exists(outputFolder))
+                {
+                    Directory.CreateDirectory(outputFolder);
+                    return new string[] { };
+                }
+                if (SAVE_FILE_NAME_SPACE)
+                {
+                    email_names = Directory.EnumerateFiles(outputFolder)
+                    .Select(Path.GetFileName)
+                    .ToArray();  //FIXME
+                    for (int i = 0; i < email_names.Length; i++)
+                    {
+                        email_names[i] = email_names[i].TrimStart('0');
+                    }
+                } else
+                {
+                    email_names = Directory.EnumerateFiles(outputFolder)
+                    .Select(Path.GetFileNameWithoutExtension)  // In this case the .json extension needs to be removed
                     .ToArray();
+                }
+                
             }
             catch (System.Exception ex)
             {
@@ -375,13 +401,17 @@ namespace PhishingDataCollector
             };
             foreach (MailData mail in mails)
             {
-                var file_name = Path.Combine(outputFolder, mail.GetID());// + ".json");
-                try
+                string file_name;
+                if (SAVE_FILE_NAME_SPACE)
                 {
-                    if (file_name.Length >= 260)
-                    {
-                        file_name = Path.Combine(outputFolder, mail.GetID().Trim('0'));  // removes trailing "0"s 
-                    }
+                    file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
+                } else
+                {
+                    file_name = mail.GetID()+".json";
+                } 
+                file_name = Path.Combine(outputFolder, file_name);
+                try
+                { 
                     using (StreamWriter writer = new StreamWriter(file_name))
                     {
                         string json = JsonSerializer.Serialize(mail, options);
@@ -399,8 +429,7 @@ namespace PhishingDataCollector
         private void ConfigureLogger(string log_base_path)
         {
             log4net.Config.XmlConfigurator.Configure();
-            log4net.Repository.Hierarchy.Hierarchy h =
-            (log4net.Repository.Hierarchy.Hierarchy)LogManager.GetRepository();
+            log4net.Repository.Hierarchy.Hierarchy h = (log4net.Repository.Hierarchy.Hierarchy)LogManager.GetRepository();
             foreach (IAppender a in h.Root.Appenders)
             {
                 if (a is FileAppender)
