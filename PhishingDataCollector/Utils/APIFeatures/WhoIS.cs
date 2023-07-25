@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Diagnostics;
+﻿using Microsoft.AspNetCore.WebUtilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Net;
-using System.IO;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using PhishingDataCollector.Utils;
-using System.Threading.Tasks;
-using System.Security.Cryptography.X509Certificates;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
 
 namespace PhishingDataCollector
 {
@@ -24,7 +23,7 @@ namespace PhishingDataCollector
         public JArray NameServers { set; get; }
         public X509Certificate2 Cert { set; get; }
 
-        public WhoIS (string server) : base(server)
+        public WhoIS(string server) : base(server)
         {
             SetToUnknown();
         }
@@ -42,19 +41,19 @@ namespace PhishingDataCollector
             DomainExpirationDate = DomainExpirationDate == null ? TimeStamp.Origin : DomainExpirationDate; ;
             NameServers = NameServers == null ? new JArray() : NameServers;
         }
-        public double GetFeatureCreationDate()  
+        public double GetFeatureCreationDate()
         {
             return TimeStamp.ConvertToUnixTimestamp(DomainCreationDate);
         }
-        public double GetFeatureExpirationDate()  
+        public double GetFeatureExpirationDate()
         {
             return TimeStamp.ConvertToUnixTimestamp(DomainExpirationDate);
         }
-        public double GetFeatureDomainRegLength ()  // domain_reg_length
+        public double GetFeatureDomainRegLength()  // domain_reg_length
         {
             return DomainCreationDate.Subtract(DomainExpirationDate).TotalMilliseconds;
         }
-        public bool GetFeatureAbnormalURL ()  // abnormal_URL
+        public bool GetFeatureAbnormalURL()  // abnormal_URL
         {
             string claimedIdentity = Regex.Match(DomainName, @"(\w*)\.\w*$")?.Groups[1].Value;
             return claimedIdentity.Contains(Registrar);
@@ -65,16 +64,17 @@ namespace PhishingDataCollector
             {
                 return 0;
             }
-            byte? n = (byte) NameServers.Count;
+            byte? n = (byte)NameServers.Count;
             if (n == null) { n = 0; }
-            return (byte) n;
+            return (byte)n;
         }
         public bool GetFeatureSelfSignedHTTPS()
         {
             if (Cert != null)
             {
                 return Cert.SubjectName.RawData.SequenceEqual(Cert.IssuerName.RawData);
-            } else
+            }
+            else
             {
                 return false;
             }
@@ -118,7 +118,7 @@ namespace PhishingDataCollector
             httpRequest.Headers.Add("apikey", _api_key);
             try
             {
-                using (HttpWebResponse response =  (HttpWebResponse) httpRequest.GetResponse())
+                using (HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse())
                 {
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
@@ -143,22 +143,23 @@ namespace PhishingDataCollector
                                 domain.DomainExpirationDate = temp;
                             }
                             //domain.DomainCreationDate = DateTime.ParseExact((string)jsonObject.GetValue("creation_date"), datetime_format, provider);
-                             try
-                             {
+                            try
+                            {
                                 domain.NameServers = new JArray(jsonObject.GetValue("name_servers"));
-                             } catch (System.InvalidCastException ex)
-                             {
+                            }
+                            catch (System.InvalidCastException ex)
+                            {
                                 Debug.WriteLine("Invalid Cast exception!");
                                 Debug.WriteLine(ex);
                                 domain.NameServers = new JArray();
-                             }
+                            }
                         }
                         else { domain.SetToUnknown(); }
                     }
                     else { domain.SetToUnknown(); }
                     response.Close();
                 }
-                
+
             }
             catch (Exception ex) when (ex is JsonException || ex is KeyNotFoundException || ex is WebException)
             {

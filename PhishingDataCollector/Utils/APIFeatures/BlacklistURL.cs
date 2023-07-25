@@ -1,10 +1,9 @@
-﻿using System;
-using System.Diagnostics;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Net;
+using System;
+using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
+using System.Net;
 
 public class BlacklistURL : URLObject
 {
@@ -46,7 +45,8 @@ public class BlacklistURLsCollection : URLsCollection
 }
 
 
-public static class BlacklistURL_API {
+public static class BlacklistURL_API
+{
 
     private static readonly string _api_key = Environment.GetEnvironmentVariable("APIKEY__BLACKLIST_CHECKER");
     private const string _api_request_url = "https://api.blacklistchecker.com/";
@@ -55,12 +55,13 @@ public static class BlacklistURL_API {
     public static void PerformAPICall(BlacklistURL bl)
     {
         string requestURL = _api_request_url + "check/" + bl.NBlacklistsDetected;
-        try {
+        try
+        {
             HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);
             httpRequest.Headers.Add("Authorization", "Basic username" + _api_key);
-            using (HttpWebResponse response = (HttpWebResponse) httpRequest.GetResponse())
+            using (HttpWebResponse response = (HttpWebResponse)httpRequest.GetResponse())
             {
-            if (response.StatusCode == HttpStatusCode.OK)
+                if (response.StatusCode == HttpStatusCode.OK)
                 {
                     Stream resultStream = response.GetResponseStream();
                     StreamReader reader = new StreamReader(resultStream);

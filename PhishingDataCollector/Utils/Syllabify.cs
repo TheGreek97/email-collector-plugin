@@ -9,16 +9,16 @@ using System.Text.RegularExpressions;
 public class Syllabify
 {
 
-    private static readonly Regex VOWELS = new Regex (@"[^aeiouy]+");
+    private static readonly Regex VOWELS = new Regex(@"[^aeiouy]+");
 
-    private static readonly string[] _staticSubMatches = {"cial", "tia", "cius", "cious", "giu", "ion", "iou"};
+    private static readonly string[] _staticSubMatches = { "cial", "tia", "cius", "cious", "giu", "ion", "iou" };
     private static readonly Regex[] regexSubMatches = {
         new Regex(".*sia$"),
         new Regex(".*.ely$"),
         new Regex(".*[^td]ed$")
     };
 
-    private static readonly string[] _staticAddMatches = { "ia", "riet", "dien", "iu", "io", "ii", "microor"};
+    private static readonly string[] _staticAddMatches = { "ia", "riet", "dien", "iu", "io", "ii", "microor" };
     private static readonly Regex[] _regexAddMatches = {
         new Regex(".*[aeiouym]bl$"),
         new Regex(".*[aeiou]{3}.*"),
@@ -54,16 +54,17 @@ public class Syllabify
         string[] phonems = VOWELS.Split(word);
 
         int syl = 0;
-        foreach (string s in _staticSubMatches) {
+        foreach (string s in _staticSubMatches)
+        {
             if (word.Contains(s))
             {
                 syl--;
             }
         }
-       
+
         foreach (string s in _staticAddMatches)
         {
-            if (word.Contains (s))
+            if (word.Contains(s))
             {
                 syl++;
             }

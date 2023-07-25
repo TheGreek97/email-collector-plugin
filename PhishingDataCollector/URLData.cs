@@ -1,5 +1,4 @@
-﻿using Microsoft.Office.Interop.Outlook;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -17,9 +16,9 @@ namespace PhishingDataCollector
         private readonly string _protocol;
         private readonly string _port;
         private readonly string _path;  // URL path (e.g., /segreteria/libretto?q=123&p=true)
-        private readonly string[] _commonTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr", 
+        private readonly string[] _commonTLDs = { ".com", ".org", ".edu", ".gov", ".io", ".uk", ".net", ".ca", ".de", ".jp", ".fr",
             ".au", ".us", ".ru", ".ch", ".it", ".nl", ".se", ".no", ".es", ".mil", ".info", ".tk", ".cn", ".xyz", ".top" };  // most common top-level domains
-        private readonly string[] _sensitiveWords = { "secure", "account", "webscr", "login", "ebayisapi", "signin", "banking", "confirm"};
+        private readonly string[] _sensitiveWords = { "secure", "account", "webscr", "login", "ebayisapi", "signin", "banking", "confirm" };
         private readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
         private readonly Dictionary<char, float> _letterFrequencyEnglish = new Dictionary<char, float>() {
             { 'E', 0.12f } , { 'T' , 0.091f }, { 'A' , 0.0812f }, { 'O' , 0.0768f }, { 'I' , 0.0731f }, { 'N' , 0.0695f }, { 'S' , 0.0628f },
@@ -27,13 +26,13 @@ namespace PhishingDataCollector
             { 'F' , 0.0230f }, { 'Y' , 0.0211f }, { 'W' , 0.0209f }, { 'G' , 0.0203f }, { 'P' , 0.0182f }, { 'B' , 0.0149f }, { 'V' , 0.0111f },
             { 'K' , 0.0069f }, { 'X' , 0.0017f }, { 'Q' , 0.0011f }, { 'J' , 0.0010f }, { 'Z' , 0.0007f }
         };  // contains the frequencies of the letters in the English language
-        private readonly string[] _commonFreeDomains = { "000webhostapp.com", "weebly.com", "umbler.com", "16mb.com", "godaddysites.com", 
+        private readonly string[] _commonFreeDomains = { "000webhostapp.com", "weebly.com", "umbler.com", "16mb.com", "godaddysites.com",
             "webcindario.com", "ddns.net", "joomla.org", "webnode.com", "wordpress.com", "altervista.org", "wix.com", "hostinger.", "sites.google.com" };
         private VirusTotalScan VTScan { get; set; }
 
         // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
-        public readonly string FullHostName;  
-        
+        public readonly string FullHostName;
+
         //URL features
         public int n_dashes;
         public int n_underscores;
@@ -104,7 +103,8 @@ namespace PhishingDataCollector
                 {
                     _domainName = _hostName;
                 }
-            } else
+            }
+            else
             {
                 throw new ArgumentException("The provided URL is not a valid URL");
             }
@@ -128,7 +128,7 @@ namespace PhishingDataCollector
 
             ComputeProtocolPortMatchFeature();
             has_https = Regex.IsMatch(_protocol, "https", RegexOptions.IgnoreCase);
-            
+
             // Feature TLD
             TLD = _TLD;
             // Feature url_length
@@ -148,10 +148,10 @@ namespace PhishingDataCollector
             n_sensitive_words = 0;
             foreach (string word in _sensitiveWords)
             {
-                n_sensitive_words += (short) Regex.Matches(_URL, word).Count;
+                n_sensitive_words += (short)Regex.Matches(_URL, word).Count;
             }
             // Feature url_char_distance_w
-            url_char_distance_w = ((float)_URL.Split(new char[]{ 'w', 'W' }).Length / _URL.Length) - _letterFrequencyEnglish['W'];  // frequency of w in the URL - frequency of w in the English language
+            url_char_distance_w = ((float)_URL.Split(new char[] { 'w', 'W' }).Length / _URL.Length) - _letterFrequencyEnglish['W'];  // frequency of w in the URL - frequency of w in the English language
             // Feature url_char_distance_r
             url_char_distance_r = ((float)_URL.Split(new char[] { 'r', 'R' }).Length / _URL.Length) - _letterFrequencyEnglish['R'];  // frequency of r in the URL - frequency of r in the English language
 
@@ -453,10 +453,11 @@ namespace PhishingDataCollector
             }
             foreach (string common_tld in _commonTLDs)  // OR if another TLD (than the one in the URL) appears at all in the URL
             {
-                if (common_tld != _TLD && _URL.Contains(common_tld)) {
+                if (common_tld != _TLD && _URL.Contains(common_tld))
+                {
                     out_of_position_TLD = true;
                     return;
-                } 
+                }
             }
             out_of_position_TLD = false;  // otherwise, the URL is fine
         }

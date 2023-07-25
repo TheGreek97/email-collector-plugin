@@ -1,26 +1,23 @@
-﻿using PhishingDataCollector;
+﻿using Dasync.Collections;
+using PhishingDataCollector;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Net.Http.Headers;
-using System.Linq;
-using System.Collections.Generic;
 using System.Threading;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
-using System.Runtime.Serialization.Formatters.Binary;
-using Dasync.Collections;
-using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
-    private static readonly int TIMEOUT = 2000;
+    private static readonly int TIMEOUT = 20000;  // 20 seconds
 
-    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName=".\\", string fileExt = "")
-    {   
+    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName = ".\\", string fileExt = "")
+    {
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
 
@@ -30,7 +27,7 @@ public static class FileUploader
         List<string[]> chunks = new List<string[]>();
         int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
         int testSize = fileNames.Length;  // TEST ONLY: sends only N mails to the endpoint
-        for (int i = 0; i < testSize; i += chunkSize)  
+        for (int i = 0; i < testSize; i += chunkSize)
         {
             int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
             string[] chunk = new string[chunkLength];
@@ -51,10 +48,9 @@ public static class FileUploader
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
 
             var bag = new ConcurrentBag<object>();
+            CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
             await chunks.ParallelForEachAsync(async mailChunk =>
             {
-                CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
-
                 // Build the request body
                 using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
                 {
@@ -68,17 +64,16 @@ public static class FileUploader
                     {
                         var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
                         bag.Add(response);
-                        Debug.WriteLine(response.StatusCode);
+                        Debug.WriteLine("Response status code: " + response.StatusCode);
                         if (!response.IsSuccessStatusCode)
                         {
                             errors = true;
                         }
                     }
-                    catch
+                    catch (Exception e)
                     {
+                        Debug.WriteLine(e);
                         errors = true;
-                        cts.Cancel();
-                        return;
                     }
                 }
             }, maxDegreeOfParallelism: 10);
@@ -88,15 +83,20 @@ public static class FileUploader
         {
             Debug.WriteLine("Error while uploading the files ");
             Debug.WriteLine(ex);
-            _httpClient.Dispose();
-            _httpClient = new HttpClient();
-            cts.Cancel();
+            try
+            {
+                _httpClient.Dispose();
+            } // catch (ObjectDisposedException)
+            finally
+            {
+                _httpClient = new HttpClient();
+            }
             errors = true;
         }
         return !errors;
     }
 
-    public static async Task<bool> TestConnection (string url)
+    public static async Task<bool> TestConnection(string url)
     {
         // Test the connection to the server
         bool result;
@@ -104,10 +104,12 @@ public static class FileUploader
         {
             var response = await _httpClient.GetAsync(url);
             result = response.IsSuccessStatusCode;
-        } catch 
+        }
+        catch
         {
             result = false;
-        } finally
+        }
+        finally
         {
             // TODO: this is bad practice, but avoids "System.InvalidOperationException: This instance has already started one or more requests. Properties can only be modified before sending the first request."
             _httpClient.Dispose();

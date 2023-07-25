@@ -1,11 +1,4 @@
-﻿using Microsoft.Office.Interop.Outlook;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PhishingDataCollector
+﻿namespace PhishingDataCollector
 {
     internal class RawMail
     {
@@ -19,13 +12,13 @@ namespace PhishingDataCollector
         public int Size { get; set; }
         public int NumRecipients { get; set; }
 
-        public RawMail(string id, int size, string subject, 
-            string body, string htmlBody, string sender, 
-            int numRecipients, string[] headers, AttachmentData[] attachments ) 
-        { 
+        public RawMail(string id, int size, string subject,
+            string body, string htmlBody, string sender,
+            int numRecipients, string[] headers, AttachmentData[] attachments)
+        {
             EntryID = id;
             Subject = subject;
-            Size = size; 
+            Size = size;
             Body = body;
             HTMLBody = htmlBody;
             Sender = sender;
