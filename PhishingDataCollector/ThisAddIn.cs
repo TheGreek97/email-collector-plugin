@@ -109,15 +109,15 @@ namespace PhishingDataCollector
             {
                 mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 Logger.Warn("Not an exchange account");
             }
 
-            List<MailItem> mailItems = new List<MailItem>();
+            var mailItems = new List<(MailItem, string)>();
             foreach (var folder in mailFolders)
             {
-                mailItems.AddRange(from MailItem mail in folder.Items select mail);
+                mailItems.AddRange(from MailItem mail in folder.Items select (mail, folder.Name));
             }
 
             // Prompt to user
@@ -125,7 +125,7 @@ namespace PhishingDataCollector
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
             int test_limiter = tot_n_mails_to_process;  // useful for TESTING purposes: limits the feature computation to N mails
-            foreach (MailItem m in mailItems)
+            foreach ((MailItem m, string folder_name) in mailItems)
             {
                 string mail_ID = m.EntryID;
                 if (SAVE_FILENAME_SPACE)
@@ -139,7 +139,7 @@ namespace PhishingDataCollector
                     {
                         dispatcher.Invoke(() =>
                         {
-                            RawMail raw = ExtractRawDataFromMailItem(m);
+                            RawMail raw = ExtractRawDataFromMailItem(m, folder_name);
                             rawMailList.Add(raw);
                         }, DispatcherPriority.ApplicationIdle);
                         k++;
@@ -285,7 +285,7 @@ namespace PhishingDataCollector
                             (result, successfullyUploadedMails) = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, EmailsToUpload, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
-                                MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {RuntimeWatch.ElapsedMilliseconds} ms). Grazie!", AppName);
+                                MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {Math.Round(RuntimeWatch.ElapsedMilliseconds/1000f, 2)} s). Grazie!", AppName);
                             }
                             else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mail has been trasmitted
                             {
@@ -328,7 +328,7 @@ namespace PhishingDataCollector
             return;
         }
 
-        private static RawMail ExtractRawDataFromMailItem(MailItem mail)
+        private static RawMail ExtractRawDataFromMailItem(MailItem mail, string folder_name)
         {
             // Get headers from MailItem
             string[] mail_headers;
@@ -372,7 +372,6 @@ namespace PhishingDataCollector
                 }
             }
             attachments = attachments_list.ToArray();
-
             RawMail rawMail = new RawMail(
                 id: mail.EntryID,
                 size: mail.Size,
@@ -382,7 +381,9 @@ namespace PhishingDataCollector
                 sender: mail.SenderEmailAddress,
                 numRecipients: mail.Recipients.Count,
                 headers: mail_headers,
-                attachments: attachments
+                attachments: attachments,
+                read: !mail.UnRead,
+                folderName: folder_name
                 );
             return rawMail;
         }

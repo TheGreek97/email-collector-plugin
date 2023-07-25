@@ -13,6 +13,9 @@ namespace PhishingDataCollector
         public int n_hops;
         public short n_smtp_servers_blacklist;
         public string email_origin_location;
+        public string folder_name;  // additional information
+        public bool is_read;        // additional information
+        public readonly int mail_size;
 
         // Subject features
         public int n_words_subject;
@@ -57,8 +60,7 @@ namespace PhishingDataCollector
         public short vt_l_unknown;
 
         // URL features
-        public List<URLData> MailURLs = new List<URLData>();
-        public readonly int MailSize;
+        public List<URLData> MailURLs = new List<URLData>();  // additional information
 
         // Attachments Features
         public byte n_attachments;
@@ -98,7 +100,7 @@ namespace PhishingDataCollector
         {
             // Set private fields
             _mailID = mail.EntryID;
-            MailSize = mail.Size;
+            mail_size = mail.Size;
             _mailHeaders = mail.Headers;
             _mailSubject = mail.Subject;
             _mailBody = mail.Body;
@@ -107,23 +109,10 @@ namespace PhishingDataCollector
             _emailSender = mail.Sender;
             _mailAttachments = mail.Attachments;
             _num_recipients = mail.NumRecipients;
+            folder_name = mail.Folder;
+            is_read = mail.IsRead;
         }
 
-        public MailData(string id, int size, string subject, string body, string htmlBody,
-            string sender, int num_recipients, string[] headers, AttachmentData[] attachments)
-        {
-            // Set private fields
-            _mailID = id;
-            MailSize = size;
-            _mailHeaders = headers;
-            _mailSubject = subject;
-            _mailBody = body;
-            _HTMLBody = htmlBody;
-            _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
-            _emailSender = sender;
-            _mailAttachments = attachments;
-            _num_recipients = num_recipients;
-        }
         public string GetID() { return _mailID; }
         public void ComputeFeatures()
         {
