@@ -16,17 +16,20 @@ public static class FileUploader
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
     private static readonly int TIMEOUT = 20000;  // 20 seconds
 
-    public static async Task<bool> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName = ".\\", string fileExt = "")
+    public static async Task<(bool, string[])> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName = ".\\", string fileExt = "")
     {
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
 
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
+        
+        // Here we store the emails that have been successfully uploaded
+        List<string> uploaded_mails = new List<string>();
 
         // Split the email list in multiple requests of N mails (e.g., 20)
         List<string[]> chunks = new List<string[]>();
         int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
-        int testSize = fileNames.Length;  // TEST ONLY: sends only N mails to the endpoint
+        int testSize = fileNames.Length;  // TEST ONLY: sets a limit of N mails to send to the endpoint
         for (int i = 0; i < testSize; i += chunkSize)
         {
             int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
@@ -65,7 +68,10 @@ public static class FileUploader
                         var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
                         bag.Add(response);
                         Debug.WriteLine("Response status code: " + response.StatusCode);
-                        if (!response.IsSuccessStatusCode)
+                        if (response.IsSuccessStatusCode)
+                        {
+                            uploaded_mails.AddRange(mailChunk);  // add the email that have been uploaded correctly
+                        } else
                         {
                             errors = true;
                         }
@@ -93,7 +99,7 @@ public static class FileUploader
             }
             errors = true;
         }
-        return !errors;
+        return (!errors, uploaded_mails.ToArray());
     }
 
     public static async Task<bool> TestConnection(string url)
