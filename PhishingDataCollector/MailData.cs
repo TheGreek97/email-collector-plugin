@@ -39,6 +39,8 @@ namespace PhishingDataCollector
         public float cap_ratio;
         public int n_links_ASCII;
         public bool binary_URL_bag_of_words;
+        public int bank_count_in_body;
+
 
         public string language;
         public float voc_rate;
@@ -51,7 +53,7 @@ namespace PhishingDataCollector
         public int n_phishy;
         public int n_scammy;
         public int n_misspelled_words;
-        public int n_special_characters_body;
+        public char[] n_special_characters_body;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -85,6 +87,15 @@ namespace PhishingDataCollector
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string[] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
+        private System.Collections.Generic.Dictionary<string, string> bankTraductions = new System.Collections.Generic.Dictionary<string, string>()
+        {
+            { "en", "bank" },
+            { "es", "banco"  },
+            { "fr", "banque"  },
+            { "pt", "bank"  },
+            { "it", "banca"  },
+            { "de", "bank"  }
+        };
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex(@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -210,6 +221,9 @@ namespace PhishingDataCollector
 
             //Feature body_size
             body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
+
+            //Feature bank_count_in_body
+            bank_count_in_body = Regex.Match(_mailBody, bankTraductions[language].ToString(), RegexOptions.IgnoreCase).Length;
 
             //Features: n_misspelled_words, n_phishy, n_scammy, vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate, voc_rate, vdb_rate
             var word_features = BodyFeatures.GetWordsFeatures(_plainTextBody, language);
