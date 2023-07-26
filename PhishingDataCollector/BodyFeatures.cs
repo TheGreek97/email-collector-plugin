@@ -18,7 +18,7 @@ namespace PhishingDataCollector
         private static readonly string[] _scammyWords = { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
             "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" };
         private static readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
-
+        
         public static float GetReadabilityIndex(string mailBody, string language = "en")
         {
             int n_letters = Regex.Matches(mailBody, @"\w").Count;
