@@ -51,7 +51,7 @@ namespace PhishingDataCollector
         public int n_phishy;
         public int n_scammy;
         public int n_misspelled_words;
-        public int n_special_characters_body;
+        public char[] n_special_characters_body;
 
         public float vt_l_rate;
         public short vt_l_maximum;

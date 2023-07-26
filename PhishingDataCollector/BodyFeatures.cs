@@ -93,17 +93,18 @@ namespace PhishingDataCollector
             return language;
         }
 
-        public static int GetNSpecialChars(string body_text)
+        public static char[] GetNSpecialChars(string body_text)
         {
-            int n = 0;
+            System.Collections.Generic.List<char> ret = new System.Collections.Generic.List<char>();
+
             foreach (char c in body_text)
             {
                 if (_specialCharacters.Contains(c))
                 {
-                    n++;
+                    ret.Add(c);
                 }
             }
-            return n;
+            return ret.ToArray() ;
         }
 
 
