@@ -368,3 +368,5 @@ FodyWeavers.xsd
 /output/emails/*
 /AurigaAddin
 /PublishedAddin
+/PublishedAddin.zip
+/PublishedAddin_light.zip

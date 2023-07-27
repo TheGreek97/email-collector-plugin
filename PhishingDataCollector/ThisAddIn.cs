@@ -32,7 +32,7 @@ namespace PhishingDataCollector
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly bool _executeInParallel = false;
         private static readonly string AppName = "Auriga Mail Collector";
-        private static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
+        private static readonly string ENDPOINT_BASE_URL = "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
         private static readonly bool SAVE_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
@@ -383,7 +383,8 @@ namespace PhishingDataCollector
                 headers: mail_headers,
                 attachments: attachments,
                 read: !mail.UnRead,
-                folderName: folder_name
+                folderName: folder_name,
+                datetime: mail.ReceivedTime
                 );
             return rawMail;
         }

@@ -1,4 +1,6 @@
-﻿namespace PhishingDataCollector
+﻿using System;
+
+namespace PhishingDataCollector
 {
     internal class RawMail
     {
@@ -13,11 +15,12 @@
         public int NumRecipients { get;}
         public bool IsRead { get; }
         public string Folder { get; }
+        public DateTime Date { get; }
 
         public RawMail(string id, int size, string subject,
             string body, string htmlBody, string sender,
             int numRecipients, string[] headers, AttachmentData[] attachments, 
-            bool read, string folderName)
+            bool read, string folderName, DateTime datetime)
         {
             EntryID = id;
             Subject = subject;
@@ -30,6 +33,7 @@
             Attachments = attachments;
             IsRead = read;
             Folder = folderName;
+            Date = datetime.Date;
         }
     }
 }
