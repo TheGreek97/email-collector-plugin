@@ -1,4 +1,5 @@
-﻿using Microsoft.Office.Tools.Ribbon;
+﻿using java.awt;
+using Microsoft.Office.Tools.Ribbon;
 
 namespace PhishingDataCollector
 {
@@ -10,16 +11,20 @@ namespace PhishingDataCollector
             Base.Ribbon.RibbonType = "Microsoft.Outlook.Explorer";
         }
 
-        private void button1_Click(object sender, RibbonControlEventArgs e)
+        private void LaunchButton_Click(object sender, RibbonControlEventArgs e)
         {
-            this.button1.Enabled = false;
+            LaunchPluginBtn.Enabled = false;
             ThisAddIn.ExecuteAddIn();
-            this.button1.Enabled = true;
         }
 
-        private void gallery1_Click(object sender, RibbonControlEventArgs e)
-        {
 
+        private void StateButton_Click(object sender, RibbonControlEventArgs e)
+        {
+            ThisAddIn.ShowStatus();
+        }
+
+        private void AboutButton_Click(object sender, RibbonControlEventArgs e)
+        {
         }
     }
 }

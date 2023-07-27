@@ -203,11 +203,8 @@ namespace PhishingDataCollector
             {
                 string[] pos_tags;
 
-                string path = Path.Combine(Path.GetTempPath(), "tempfile.exe");
-                File.WriteAllBytes(path, PhishingDataCollector.Properties.Resources.MyExecutable);
-                Process.Start(path);
 
-                /* // Python.net implementation to run the python script for POS tagging
+                /* Python.net implementation to run the python script for POS tagging */
                 string py_file = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "posTagger_it.py");
                 using (Py.GIL())
                 {
@@ -223,7 +220,7 @@ namespace PhishingDataCollector
                         pos_tags = result;
                     }
                     ThisAddIn.Logger.Info($"Processed POS tagging.");
-                }*/
+                }
 
                 /* IronPython does not include external libraries. 
                  * It would be nice to have it, cause IronPython multi-threading, differently from Python.Net

@@ -36,7 +36,9 @@
         {
             this.tab1 = this.Factory.CreateRibbonTab();
             this.group1 = this.Factory.CreateRibbonGroup();
-            this.button1 = this.Factory.CreateRibbonButton();
+            this.LaunchPluginBtn = this.Factory.CreateRibbonButton();
+            this.StateBtn = this.Factory.CreateRibbonButton();
+            this.AboutBtn = this.Factory.CreateRibbonButton();
             this.tab1.SuspendLayout();
             this.group1.SuspendLayout();
             this.SuspendLayout();
@@ -44,24 +46,42 @@
             // tab1
             // 
             this.tab1.Groups.Add(this.group1);
-            this.tab1.Label = "Auriga S.p.A.";
+            this.tab1.Label = "Dataset collector";
             this.tab1.Name = "tab1";
             // 
             // group1
             // 
-            this.group1.Items.Add(this.button1);
+            this.group1.Items.Add(this.LaunchPluginBtn);
+            this.group1.Items.Add(this.StateBtn);
+            this.group1.Items.Add(this.AboutBtn);
             this.group1.Label = "Mail Data Collector";
             this.group1.Name = "group1";
             // 
-            // button1
+            // LaunchPluginBtn
             // 
-            this.button1.Image = global::PhishingDataCollector.Properties.Resources.image_removebg_preview;
-            this.button1.Label = "Inizia Collezionamento Dati";
-            this.button1.Name = "button1";
-            this.button1.ShowImage = true;
-            this.button1.SuperTip = "Launches the Data Collection Process: Warning! It could take several minutes to c" +
-    "omplete.";
-            this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button1_Click);
+            this.LaunchPluginBtn.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.LaunchPluginBtn.Label = "Esegui Plugin";
+            this.LaunchPluginBtn.Name = "LaunchPluginBtn";
+            this.LaunchPluginBtn.ShowImage = true;
+            this.LaunchPluginBtn.SuperTip = "Lancia il processo di collezionamento dati";
+            this.LaunchPluginBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.LaunchButton_Click);
+            // 
+            // StateBtn
+            // 
+            this.StateBtn.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.StateBtn.Label = "Stato avanzamento";
+            this.StateBtn.Name = "StateBtn";
+            this.StateBtn.ShowImage = true;
+            this.StateBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.StateButton_Click);
+            // 
+            // AboutBtn
+            // 
+            this.AboutBtn.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.AboutBtn.Label = "Informazioni";
+            this.AboutBtn.Name = "AboutBtn";
+            this.AboutBtn.ShowImage = true;
+            this.AboutBtn.Visible = false;
+            this.AboutBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.AboutButton_Click);
             // 
             // LaunchRibbon
             // 
@@ -80,8 +100,10 @@
         #endregion
 
         internal Microsoft.Office.Tools.Ribbon.RibbonTab tab1;
-        internal Microsoft.Office.Tools.Ribbon.RibbonButton button1;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton LaunchPluginBtn;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup group1;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton StateBtn;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton AboutBtn;
     }
 
     partial class ThisRibbonCollection

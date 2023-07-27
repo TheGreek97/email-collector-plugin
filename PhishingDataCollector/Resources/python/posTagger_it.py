@@ -1,8 +1,5 @@
 import spacy
-
-if __name__ == "__main__":
-    POSTags = GetPOSTags(bodyTxt)
-
+import sys 
 
 def GetPOSTags (bodyTxt):
     # Load the Italian language model for spaCy
@@ -17,3 +14,10 @@ def GetPOSTags (bodyTxt):
     for token in doc:
         pos_tags.append(token.pos_)#[token.text, token.pos_])
     return pos_tags
+
+if __name__ == "__main__":
+    if (sys.argv[1] == None):
+        print ("Error: argument required!")
+    else: 
+        POSTags = GetPOSTags(sys.argv[1])
+        print (POSTags)
