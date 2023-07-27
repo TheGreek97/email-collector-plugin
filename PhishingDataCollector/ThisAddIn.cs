@@ -1,6 +1,7 @@
 ﻿using log4net;
 using log4net.Appender;
 using Microsoft.Office.Interop.Outlook;
+using PhishingDataCollector.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,10 +13,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.UI;
 using System.Windows.Forms;
 using System.Windows.Threading;
-using Python.Runtime;
 
 namespace PhishingDataCollector
 {
@@ -26,6 +25,8 @@ namespace PhishingDataCollector
         public static int EMAIL_LIMIT = 20000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
         public static readonly string ENDPOINT_BASE_URL = "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
+        public static string POS_PATH;
+
         private static bool InExecution = false;
         private static bool UploadingFiles = false;
         private static int MailProgress;
@@ -65,12 +66,18 @@ namespace PhishingDataCollector
             TaskPaneControl = Globals.Ribbons.LaunchRibbon;
             TaskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+
+            // Extract Python POS tagger for Italian
+            POS_PATH = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
+            if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file -> (to avoid extracting the zip again)
+                string python_zip_path = Path.Combine(POS_PATH, "posTagger_it.zip");
+                ZipUtils.Extract(python_zip_path, null, POS_PATH);
+            }
+                
+
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
-            // Python engine
-            Runtime.PythonDLL = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "python311.dll");
-            PythonEngine.Initialize();/**/
         }
 
         public static void ShowStatus()
@@ -623,10 +630,10 @@ namespace PhishingDataCollector
 
         private static void StopAddIn()
         {
-            InExecution = false;
+            InExecution = false;  
             UploadingFiles = false;
             TaskPaneControl.LaunchPluginBtn.Enabled = true;
-            //System.Windows.Forms.Application.DoEvents();
+            System.Windows.Forms.Application.DoEvents();
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)

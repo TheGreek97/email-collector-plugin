@@ -1,9 +1,10 @@
 import spacy
 import sys 
+import os
 
 def GetPOSTags (bodyTxt):
     # Load the Italian language model for spaCy
-    nlp = spacy.load("it_core_news_sm")
+    nlp = spacy.load(os.path.join(os.getcwd(), "it_core_news_sm", "it_core_news_sm-3.6.0"))
 
     # Process the text with spaCy to perform POS tagging
     doc = nlp(bodyTxt)
@@ -16,8 +17,8 @@ def GetPOSTags (bodyTxt):
     return pos_tags
 
 if __name__ == "__main__":
-    if (sys.argv[1] == None):
-        print ("Error: argument required!")
-    else: 
+    try: 
         POSTags = GetPOSTags(sys.argv[1])
         print (POSTags)
+    except IndexError:
+        print ("Error: argument required!")

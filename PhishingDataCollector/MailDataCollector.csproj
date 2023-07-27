@@ -219,18 +219,6 @@
     <Reference Include="IKVM.Runtime.JNI, Version=8.1.5717.0, Culture=neutral, PublicKeyToken=13235d27fcbfff58, processorArchitecture=MSIL">
       <HintPath>..\packages\IKVM.8.1.5717.0\lib\IKVM.Runtime.JNI.dll</HintPath>
     </Reference>
-    <Reference Include="IronPython, Version=3.4.1.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\IronPython.3.4.1\lib\net462\IronPython.dll</HintPath>
-    </Reference>
-    <Reference Include="IronPython.Modules, Version=3.4.1.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\IronPython.3.4.1\lib\net462\IronPython.Modules.dll</HintPath>
-    </Reference>
-    <Reference Include="IronPython.SQLite, Version=3.4.1.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\IronPython.3.4.1\lib\net462\IronPython.SQLite.dll</HintPath>
-    </Reference>
-    <Reference Include="IronPython.Wpf, Version=3.4.1.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
-      <HintPath>..\packages\IronPython.3.4.1\lib\net462\IronPython.Wpf.dll</HintPath>
-    </Reference>
     <Reference Include="LanguageDetection, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\LanguageDetection.1.2.0\lib\net45\LanguageDetection.dll</HintPath>
     </Reference>
@@ -288,9 +276,6 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
-    <Reference Include="Python.Runtime, Version=3.0.1.0, Culture=neutral, PublicKeyToken=5000fea6cba702dd, processorArchitecture=MSIL">
-      <HintPath>..\packages\pythonnet.3.0.1\lib\netstandard2.0\Python.Runtime.dll</HintPath>
-    </Reference>
     <Reference Include="SharpEntropy, Version=1.0.7182.26900, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\OpenNLP.1.3.5\lib\net45\SharpEntropy.dll</HintPath>
     </Reference>
@@ -373,6 +358,9 @@
       <HintPath>..\packages\System.Security.Principal.Windows.5.0.0\lib\net461\System.Security.Principal.Windows.dll</HintPath>
     </Reference>
     <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Text.Encoding.CodePages, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encoding.CodePages.4.5.0\lib\net461\System.Text.Encoding.CodePages.dll</HintPath>
+    </Reference>
     <Reference Include="System.Text.Encodings.Web, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Text.Encodings.Web.7.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
@@ -457,7 +445,6 @@
     <Compile Include="AttachmentData.cs" />
     <Compile Include="BodyFeatures.cs" />
     <Compile Include="DotEnv.cs" />
-    <Compile Include="Enumerators.cs" />
     <Compile Include="FileUploader.cs" />
     <Compile Include="LaunchRibbon.cs">
       <SubType>Component</SubType>
@@ -478,22 +465,28 @@
     <Compile Include="Utils\APIFeatures\VirusTotal.cs" />
     <Compile Include="Utils\HttpUploadFile.cs" />
     <Compile Include="URLData.cs" />
+    <Compile Include="Utils\ProcessWrapper.cs" />
     <Compile Include="Utils\Syllabify.cs" />
     <Compile Include="Utils\TimeStamp.cs" />
     <Compile Include="Utils\URLsCollection.cs" />
+    <Compile Include="Utils\ZipUtils.cs" />
     <Content Include=".gitignore" />
     <Content Include="Resources\POS\Models\EnglishPOS.nbin">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\python\posTagger_it.exe" />
-    <Content Include="Resources\python\posTagger_it.py">
+    <EmbeddedResource Include="Resources\POS\posTagger_it.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <Content Include="Resources\POS\posTagger_it.zip">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\python\python311.dll">
+    <None Include="Resources\python\posTagger_it.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    </None>
+    <None Include="Resources\python\python311.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Content Include="uniba-logo.ico" />
-    <None Include="Resources\python\posTagger_it.spec" />
     <None Include="Resources\uniba-logo.bmp" />
     <None Include="Resources\uniba-logo.png" />
     <Content Include="Resources\wordList\en_basic.txt">

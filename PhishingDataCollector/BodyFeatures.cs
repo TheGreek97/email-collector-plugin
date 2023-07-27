@@ -1,7 +1,6 @@
 ﻿using LanguageDetection;
 using NHunspell;
 using OpenNLP.Tools.PosTagger;
-using Python.Runtime;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -201,11 +200,39 @@ namespace PhishingDataCollector
             }
             else if (language == "it")
             {
-                string[] pos_tags;
+                var pos_tags = new List<string>();
+                string py_file_path = Path.Combine(ThisAddIn.POS_PATH, "posTagger_it.exe");
+                
+                var StartInfo = new ProcessStartInfo();
+                StartInfo.FileName = py_file_path;
+                StartInfo.Arguments = body_text;  //Pass here the location of the it_core_news_sm (and update the py file)
+                StartInfo.UseShellExecute = false;
+                StartInfo.RedirectStandardOutput = true;
+                StartInfo.RedirectStandardError = true;
+                StartInfo.CreateNoWindow = true;
+                try
+                {
+                    var p = Process.Start(StartInfo);
+                    // ERROR it_core_news_sm is not found, cause it is searched in 'C:\Users\franc\Documents\' -> change the py file
+                    StreamReader errors = p.StandardError;
+                    StreamReader reader = p.StandardOutput;
+                    if (errors != null)
+                    {
+                        // DO SOMETHING
+                    }
+                    string output = reader.ReadToEnd();
+                    p.WaitForExit();
+                    foreach (string tag in output.Split(' '))
+                    {
+                        pos_tags.Add(tag);
 
-
-                /* Python.net implementation to run the python script for POS tagging */
-                string py_file = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "python", "posTagger_it.py");
+                    }
+                } catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+                
+                /* Python.net implementation to run the python script for POS tagging 
                 using (Py.GIL())
                 {
                     ThisAddIn.Logger.Info($"Processing POS tagging, body length: {body_text.Length} chars.");
@@ -220,7 +247,7 @@ namespace PhishingDataCollector
                         pos_tags = result;
                     }
                     ThisAddIn.Logger.Info($"Processed POS tagging.");
-                }
+                }*/
 
                 /* IronPython does not include external libraries. 
                  * It would be nice to have it, cause IronPython multi-threading, differently from Python.Net
@@ -238,14 +265,14 @@ namespace PhishingDataCollector
                 */
 
                 int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
-                foreach (var tag in pos_tags)
+                foreach (var tag in pos_tags.ToArray())
                 {
                     if (tag == "ADJ" || tag == "A" || tag == "NO" || tag == "AP") { n_adjectives++; }  // A = adjective, NO = ordinal number, AP = possessive adjective
                     else if (tag == "VERB" || tag == "V" || tag == "AUX") { n_verbs++; }  // V = verb, AUX = auxiliary   
                     else if (tag == "NOUN" || tag == "PROPN" || tag == "SP" || tag == "S") { n_nouns++; }  // SP = proper noun, S = common noun
                     else if (tag == "DET" || tag == "RD" || tag == "RI") { n_articles++; } // RD = definite article, RI = indefinite article
                 }
-                int n_words = pos_tags.Length;
+                int n_words = pos_tags.Count();
                 vdb_adjectives_rate = n_adjectives / n_words;
                 vdb_verbs_rate = n_verbs / n_words;
                 vdb_nouns_rate = n_nouns / n_words;
