@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -6,6 +7,14 @@ namespace PhishingDataCollector
 {
     internal class MailData
     {
+        /* Data to save */
+        public List<string> ServersInReceivedHeaders = new List<string>(); // will contain the servers in the Received headers    
+        public string OriginServer;
+        public string EmailFolderName;  // additional information
+        public bool UserReadEmail;  // additional information
+        public char[] SpecialCharactersBody;
+        public DateTime EmailDate;  // additional information
+
         /* Features */
         // Header features
         public int n_recipients;
@@ -13,8 +22,6 @@ namespace PhishingDataCollector
         public int n_hops;
         public short n_smtp_servers_blacklist;
         public string email_origin_location;
-        public string folder_name;  // additional information
-        public bool is_read;        // additional information
         public readonly int mail_size;
 
         // Subject features
@@ -53,7 +60,7 @@ namespace PhishingDataCollector
         public int n_phishy;
         public int n_scammy;
         public int n_misspelled_words;
-        public char[] n_special_characters_body;
+        public int n_special_characters_body;
 
         public float vt_l_rate;
         public short vt_l_maximum;
@@ -87,15 +94,6 @@ namespace PhishingDataCollector
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string[] _mailHeaders;
         private readonly AttachmentData[] _mailAttachments;
-        private System.Collections.Generic.Dictionary<string, string> bankTraductions = new System.Collections.Generic.Dictionary<string, string>()
-        {
-            { "en", "bank" },
-            { "es", "banco"  },
-            { "fr", "banque"  },
-            { "pt", "bank"  },
-            { "it", "banca"  },
-            { "de", "bank"  }
-        };
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex(@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -120,8 +118,9 @@ namespace PhishingDataCollector
             _emailSender = mail.Sender;
             _mailAttachments = mail.Attachments;
             _num_recipients = mail.NumRecipients;
-            folder_name = mail.Folder;
-            is_read = mail.IsRead;
+            EmailFolderName = mail.Folder;
+            UserReadEmail = mail.IsRead;
+            EmailDate = mail.Date;
         }
 
         public string GetID() { return _mailID; }
@@ -131,12 +130,7 @@ namespace PhishingDataCollector
             // -- Header features
             n_recipients = _num_recipients;
             plain_text = _mailBody == _HTMLBody;
-            /* 
-             * Disabled for testing 
-             * 
             ComputeHeaderFeatures();
-            */
-            /**/
 
             // -- Subject features
             ComputeSubjectFeatures();
@@ -211,7 +205,8 @@ namespace PhishingDataCollector
             cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / n_lowercase_chars_body : 0;
 
             //Feature n_special_characters_body
-            n_special_characters_body = BodyFeatures.GetNSpecialChars(_plainTextBody);
+            SpecialCharactersBody = BodyFeatures.GetSpecialChars(_plainTextBody).ToArray();
+            n_special_characters_body = SpecialCharactersBody.Distinct().Count();
 
             //Feature language
             language = BodyFeatures.GetLanguage(_plainTextBody);
@@ -223,7 +218,7 @@ namespace PhishingDataCollector
             body_size = System.Text.Encoding.Unicode.GetByteCount(_HTMLBody);
 
             //Feature bank_count_in_body
-            bank_count_in_body = Regex.Match(_mailBody, bankTraductions[language].ToString(), RegexOptions.IgnoreCase).Length;
+            bank_count_in_body = BodyFeatures.GetBankCountFeatures(_mailBody, language);
 
             //Features: n_misspelled_words, n_phishy, n_scammy, vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate, voc_rate, vdb_rate
             var word_features = BodyFeatures.GetWordsFeatures(_plainTextBody, language);
@@ -376,8 +371,7 @@ namespace PhishingDataCollector
         {
             n_hops = 0;
             Regex header_rx = new Regex(@"^(X-)?Received:", RegexOptions.IgnoreCase);  //"Received" or "X-Received" headers
-
-            List<string> servers_in_received_headers = new List<string>(); // will contain the servers in the Received headers     
+  
             int x_originating_ip_idx = -1; //, x_originating_email_idx=-1;
             for (int i = 0; i < _mailHeaders.Length; i++)
             {
@@ -387,12 +381,12 @@ namespace PhishingDataCollector
                     Match match_ip = _ip_address_regex.Match(_mailHeaders[i]);
                     if (match_ip.Success)
                     {  //  try to match an IP address  
-                        servers_in_received_headers.Add(match_ip.Value);
+                        ServersInReceivedHeaders.Add(match_ip.Value);
                     }
                     else
                     {  //  try to match a domain URL
                         Match match_url = _url_address_regex.Match(_mailHeaders[i]);
-                        if (match_url.Success) { servers_in_received_headers.Add(match_url.Value); }
+                        if (match_url.Success) { ServersInReceivedHeaders.Add(match_url.Value); }
                     }
                 }
                 else if (_mailHeaders[i].StartsWith("X-Originating-IP"))
@@ -401,7 +395,8 @@ namespace PhishingDataCollector
                 }
             }
             //  Blacklists check of the traversed mailservers  -n_smtp_servers_blacklist-
-            foreach (string mail_server in servers_in_received_headers)
+            /* To be performed in batch
+             * foreach (string mail_server in servers_in_received_headers)
             {
                 // API call to check the mail_server against more than 100 blacklists
                 BlacklistURL alreadyAnalyzedURL = (BlacklistURL)BlacklistedURLs.Find(mail_server);    // Checks if the IP has already been analyzed
@@ -416,21 +411,22 @@ namespace PhishingDataCollector
                 {
                     if (alreadyAnalyzedURL.NBlacklists > 0) { n_smtp_servers_blacklist++; }
                 }
-            }
+            }*/
 
             // email_origin_location - Email Origin Location
-            string origin_server = "";
             if (x_originating_ip_idx >= 0)  // If "X-Originating-IP" has a value, use it!
             {
                 string header_to_consider = _mailHeaders[x_originating_ip_idx];
                 Regex origin_rx = new Regex(@"\[(.*)\]");  // Gets the orginating IP address
                 Match origin_match = origin_rx.Match(header_to_consider);
-                if (origin_match.Success) { origin_server = origin_match.Groups[1].Value; }
+                if (origin_match.Success) { OriginServer = origin_match.Groups[1].Value; }
             }
-            else if (servers_in_received_headers.Count > 0)  // Else, try to use the last "Received" header
+            else if (ServersInReceivedHeaders.Count > 0)  // Else, try to use the last "Received" header
             {
-                origin_server = servers_in_received_headers.Last();
+                OriginServer = ServersInReceivedHeaders.Last();
             }
+            /*
+             * To be performed in batch
             OriginIP alreadyAnalyzedIP = (OriginIP)EmailOriginIPs.Find(origin_server);    // Checks if the IP has already been analyzed
             if (alreadyAnalyzedIP == null)
             {
@@ -443,6 +439,7 @@ namespace PhishingDataCollector
             {
                 email_origin_location = alreadyAnalyzedIP.GetFeature();  // If the IP has already been analyzed, take the available result
             }
+            */
             return;
         }
 
@@ -486,7 +483,7 @@ namespace PhishingDataCollector
                         if (link_scan.NHarmless > 0) { vt_a_clean++; }  // if there's at least 1 "harmless" vote, we can consider it clean
                         else { vt_a_unknown++; }  // otherwise, the attachment is unknown to VirusTotal
                     }*/
-                    i++;
+            i++;
                 }
                 attachments_size = att_sizes.Average();
                 // vt_a_rate = vt_a_positives / n_attachments;  Not computed realtime 

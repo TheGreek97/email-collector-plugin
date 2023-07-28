@@ -91,6 +91,26 @@ namespace PhishingDataCollector.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] posTagger_it {
+            get {
+                object obj = ResourceManager.GetObject("posTagger_it", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] posTagger_it_zip {
+            get {
+                object obj = ResourceManager.GetObject("posTagger_it.zip", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
         internal static System.Drawing.Bitmap uniba_logo {

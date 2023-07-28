@@ -368,3 +368,16 @@ FodyWeavers.xsd
 /output/emails/*
 /AurigaAddin
 /PublishedAddin
+/PublishedAddin.zip
+/PublishedAddin_light.zip
+/PhishingDataCollector/Resources/python/build/posTagger_it
+/PhishingDataCollector/Resources/python/dist/posTagger_it
+/PhishingDataCollector/Resources/python/posTagger_it.exe
+/PhishingDataCollector/Resources/python/posTagger_it.spec
+/PhishingDataCollector/AboutBox1.cs
+/PhishingDataCollector/AboutBox1.Designer.cs
+/PhishingDataCollector/AboutBox1.resx
+/PhishingDataCollector/Codeprojectstyles.css
+/PhishingDataCollector/Resources/python/.env
+/PhishingDataCollector/Resources/python/it_core_news_sm
+/PhishingDataCollector/Resources/python/posTagger_it.zip
