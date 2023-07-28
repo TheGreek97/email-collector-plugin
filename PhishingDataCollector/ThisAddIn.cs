@@ -23,9 +23,9 @@ namespace PhishingDataCollector
     {
         //public static HttpClientHandler httpHandler = new HttpClientHandler();
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
-        public static int EMAIL_LIMIT = 20000;
+        public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
-        public static readonly string ENDPOINT_BASE_URL = "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
+        public static readonly string ENDPOINT_BASE_URL =  "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -34,7 +34,7 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = true;
+        private static readonly bool _executeInParallel = false;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
@@ -613,7 +613,7 @@ namespace PhishingDataCollector
             }
         }
 
-        private static Guid GetClientID()
+        public static Guid GetClientID()
         {
             string rootDir = Environment.GetEnvironmentVariable("ROOT_FOLDER");
             string clientIDFile = Path.Combine(rootDir, "CLIENT_ID");

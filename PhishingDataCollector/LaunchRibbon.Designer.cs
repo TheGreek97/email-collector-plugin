@@ -54,7 +54,7 @@
             this.group1.Items.Add(this.LaunchPluginBtn);
             this.group1.Items.Add(this.StateBtn);
             this.group1.Items.Add(this.AboutBtn);
-            this.group1.Label = "Mail Data Collector";
+            this.group1.Label = "Comandi";
             this.group1.Name = "group1";
             // 
             // LaunchPluginBtn

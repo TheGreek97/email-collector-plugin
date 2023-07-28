@@ -217,7 +217,7 @@ namespace PhishingDataCollector
                     // ERROR it_core_news_sm is not found, cause it is searched in 'C:\Users\franc\Documents\' -> change the py file
                     StreamReader errors = p.StandardError;
                     StreamReader reader = p.StandardOutput;
-                    if (errors != null)
+                    /*if (errors != null) This can lead to deadlock - it should be read asynchronously (https://stackoverflow.com/questions/139593/processstartinfo-hanging-on-waitforexit-why)
                     {
                         var err_string = errors.ReadToEnd();
                         if (! string.IsNullOrEmpty(err_string))
@@ -225,7 +225,7 @@ namespace PhishingDataCollector
                             Debug.WriteLine(err_string);
                             ThisAddIn.Logger.Error(err_string);
                         }
-                    }
+                    }*/
                     string output = reader.ReadToEnd();
                     p.WaitForExit();
                     MatchCollection tag_matches = Regex.Matches(output, @"\'([^\']+)\'");

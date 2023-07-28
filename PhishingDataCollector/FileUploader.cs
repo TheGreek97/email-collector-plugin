@@ -20,7 +20,7 @@ public static class FileUploader
     {
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
-
+        
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
         
         // Here we store the emails that have been successfully uploaded
@@ -48,8 +48,9 @@ public static class FileUploader
             // Add Headers for HTTP requests
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);  // Add the authorization token
+            _httpClient.DefaultRequestHeaders.Add("ClientID", ThisAddIn.GetClientID().ToString());
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
-
+            
             var bag = new ConcurrentBag<object>();
             CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
             await chunks.ParallelForEachAsync(async mailChunk =>
