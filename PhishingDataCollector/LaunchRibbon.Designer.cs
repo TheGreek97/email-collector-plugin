@@ -77,10 +77,9 @@
             // AboutBtn
             // 
             this.AboutBtn.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
-            this.AboutBtn.Label = "Informazioni";
+            this.AboutBtn.Label = "Mostra ID client";
             this.AboutBtn.Name = "AboutBtn";
             this.AboutBtn.ShowImage = true;
-            this.AboutBtn.Visible = false;
             this.AboutBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.AboutButton_Click);
             // 
             // LaunchRibbon

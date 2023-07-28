@@ -1,4 +1,5 @@
-﻿using log4net;
+﻿using com.sun.security.ntlm;
+using log4net;
 using log4net.Appender;
 using Microsoft.Office.Interop.Outlook;
 using PhishingDataCollector.Utils;
@@ -43,6 +44,7 @@ namespace PhishingDataCollector
         // Variables initialized in the ThisAddIn_Startup function:
         public static ILog Logger;
         private static string RootDir;
+        public static Guid ClientID;
 
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
@@ -62,6 +64,7 @@ namespace PhishingDataCollector
             Environment.SetEnvironmentVariable("RESOURCE_FOLDER", Path.Combine(RootDir, "Resources"));
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
+            ClientID = GetClientID();
 
             TaskPaneControl = Globals.Ribbons.LaunchRibbon;
             TaskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
@@ -78,6 +81,13 @@ namespace PhishingDataCollector
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
+        }
+        public static void ShowClientID()
+        {
+            MessageBox.Show($"Il tuo ID client è:\n\n" +
+                ClientID + "\n\n" +
+                $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni.", AppName);
+            return;
         }
 
         public static void ShowStatus()
@@ -601,6 +611,32 @@ namespace PhishingDataCollector
                     Logger.Error($"SaveMails PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
+        }
+
+        private static Guid GetClientID()
+        {
+            string rootDir = Environment.GetEnvironmentVariable("ROOT_FOLDER");
+            string clientIDFile = Path.Combine(rootDir, "CLIENT_ID");
+            Guid clientID;
+            try
+            {
+                if (File.Exists(clientIDFile)) // Retrieve the Client ID of the user
+                {
+                    string guid_txt = File.ReadAllText(clientIDFile);
+                    clientID = new Guid(guid_txt);
+                }
+                else // This should happen only in the first run ever
+                {
+                    clientID = Guid.NewGuid();
+                    File.WriteAllText(clientIDFile, clientID.ToString());
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.WriteLine(e);
+                clientID = Guid.NewGuid();
+            }
+            return clientID;
         }
 
         private void ConfigureLogger(string log_base_path)

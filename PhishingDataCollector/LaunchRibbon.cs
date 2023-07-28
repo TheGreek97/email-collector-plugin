@@ -13,7 +13,6 @@ namespace PhishingDataCollector
 
         private void LaunchButton_Click(object sender, RibbonControlEventArgs e)
         {
-            LaunchPluginBtn.Enabled = false;
             ThisAddIn.ExecuteAddIn();
         }
 
@@ -25,6 +24,7 @@ namespace PhishingDataCollector
 
         private void AboutButton_Click(object sender, RibbonControlEventArgs e)
         {
+            ThisAddIn.ShowClientID();
         }
     }
 }
