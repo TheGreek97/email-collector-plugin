@@ -33,7 +33,7 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = false;
+        private static readonly bool _executeInParallel = true;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
@@ -86,7 +86,7 @@ namespace PhishingDataCollector
             {
                 if (RuntimeWatch == null)
                 {
-                    MessageBox.Show("Il processo è in esecuzione, attendi di ricevere una notifica.", AppName);
+                    MessageBox.Show("Il processo è in esecuzione, attendi di ricevere una notifica. Stiamo organizzando le email della tua casella per l'elaborazione.", AppName);
                     return;
                 }
                 if (UploadingFiles)
@@ -163,7 +163,7 @@ namespace PhishingDataCollector
             var dialogResult = MessageBox.Show("Grazie per la tua partecipazione alla raccolta dati.\n" +
                 "Stiamo sistemando le email della tua casella di posta per estrarre e collezionare i dati anonimi.\n" +
                 "Ti ricordiamo che la tua partecipazione è volontaria ed i tuoi dati saranno raccolti in conformità all'informativa " +
-                "sul trattamento dei dati già accettata al momento del download del plugin. Desideri visionarla nuovamente?", 
+                "sul trattamento dei dati già accettata al momento del download del plugin. Desideri visionarla sul nostro sito web?", 
                 AppName, 
                 MessageBoxButtons.YesNoCancel, 
                 MessageBoxIcon.Information);

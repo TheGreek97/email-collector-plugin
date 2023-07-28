@@ -46,7 +46,7 @@
             // tab1
             // 
             this.tab1.Groups.Add(this.group1);
-            this.tab1.Label = "Dataset collector";
+            this.tab1.Label = "Dataset Collector";
             this.tab1.Name = "tab1";
             // 
             // group1

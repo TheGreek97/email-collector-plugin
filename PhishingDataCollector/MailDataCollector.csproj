@@ -465,7 +465,6 @@
     <Compile Include="Utils\APIFeatures\VirusTotal.cs" />
     <Compile Include="Utils\HttpUploadFile.cs" />
     <Compile Include="URLData.cs" />
-    <Compile Include="Utils\ProcessWrapper.cs" />
     <Compile Include="Utils\Syllabify.cs" />
     <Compile Include="Utils\TimeStamp.cs" />
     <Compile Include="Utils\URLsCollection.cs" />

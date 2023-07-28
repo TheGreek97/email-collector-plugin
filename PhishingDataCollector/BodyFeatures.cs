@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using com.sun.istack.@internal.logging;
 
 namespace PhishingDataCollector
 {
@@ -205,7 +206,7 @@ namespace PhishingDataCollector
                 
                 var StartInfo = new ProcessStartInfo();
                 StartInfo.FileName = py_file_path;
-                StartInfo.Arguments = body_text;  //Pass here the location of the it_core_news_sm (and update the py file)
+                StartInfo.Arguments = ThisAddIn.POS_PATH + " \""+body_text+"\"";  //Pass here the location of the it_core_news_sm (and update the py file)
                 StartInfo.UseShellExecute = false;
                 StartInfo.RedirectStandardOutput = true;
                 StartInfo.RedirectStandardError = true;
@@ -218,18 +219,24 @@ namespace PhishingDataCollector
                     StreamReader reader = p.StandardOutput;
                     if (errors != null)
                     {
-                        // DO SOMETHING
+                        var err_string = errors.ReadToEnd();
+                        if (! string.IsNullOrEmpty(err_string))
+                        {
+                            Debug.WriteLine(err_string);
+                            ThisAddIn.Logger.Error(err_string);
+                        }
                     }
                     string output = reader.ReadToEnd();
                     p.WaitForExit();
-                    foreach (string tag in output.Split(' '))
+                    MatchCollection tag_matches = Regex.Matches(output, @"\'([^\']+)\'");
+                    foreach (Match match in tag_matches)
                     {
-                        pos_tags.Add(tag);
-
+                        pos_tags.Add(match.Groups[1].Value);  // Groups[1] contains the group match (without '')
                     }
                 } catch (Exception e)
                 {
                     Debug.WriteLine(e);
+                    ThisAddIn.Logger.Error(e);
                 }
                 
                 /* Python.net implementation to run the python script for POS tagging 
@@ -273,6 +280,7 @@ namespace PhishingDataCollector
                     else if (tag == "DET" || tag == "RD" || tag == "RI") { n_articles++; } // RD = definite article, RI = indefinite article
                 }
                 int n_words = pos_tags.Count();
+                n_words = n_words == 0 ? 1 : n_words;  // avoid division by 0
                 vdb_adjectives_rate = n_adjectives / n_words;
                 vdb_verbs_rate = n_verbs / n_words;
                 vdb_nouns_rate = n_nouns / n_words;
