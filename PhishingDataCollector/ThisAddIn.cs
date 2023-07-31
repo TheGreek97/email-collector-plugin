@@ -25,7 +25,7 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
-        public static readonly string ENDPOINT_BASE_URL =  "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
+        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -166,7 +166,14 @@ namespace PhishingDataCollector
             var mailItems = new List<(MailItem, string)>();
             foreach (var folder in mailFolders)
             {
-                mailItems.AddRange(from MailItem mail in folder.Items select (mail, folder.Name));
+                foreach (var item in folder.Items)
+                {
+                    if (item is MailItem item1)
+                    {
+                        mailItems.Add((item1, folder.Name));
+                    }
+                }
+                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
             }
             
             // Prompt to user
@@ -184,8 +191,9 @@ namespace PhishingDataCollector
             } else if (dialogResult == DialogResult.Yes)
             {
                 dispatcher.Invoke(() => { Process.Start(ENDPOINT_BASE_URL); });
-                
             }
+            MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
+                "Riceverai una notifica a breve.", AppName);
             var tot_n_mails_to_process = mailItems.Count();
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
@@ -210,12 +218,12 @@ namespace PhishingDataCollector
                 }
             }
 
-            int n_emails_to_process = rawMailList.Count();
-            Logger.Info("Extracted data from " + n_emails_to_process + " emails");
+            N_Mails_To_Process = rawMailList.Count();
+            Logger.Info("Extracted data from " + N_Mails_To_Process + " emails");
 
-            if (n_emails_to_process > 0)
+            if (N_Mails_To_Process > 0)
             {
-                var showMessage = "Sono presenti " + n_emails_to_process + " mail da elaborare.\n" +
+                var showMessage = "Sono presenti " + N_Mails_To_Process + " mail da elaborare.\n" +
                 "Il client di posta elettronica potrebbe subire rallentamenti per tutta la durata dell'elaborazione.\n" +
                 "Il processo potrebbe durare diversi minuti, in base al numero di email e alla potenza di questo sistema.\n" +
                 $"Si prega di non chiudere il client di posta durante l'operazione. Clicca su \"{TaskPaneControl.StateBtn.Label}\" per verificare l'avanzamento.\n" +
@@ -241,7 +249,6 @@ namespace PhishingDataCollector
 
             try
             {
-                N_Mails_To_Process = rawMailList.Count();
                 MailProgress = 1;
                 int batchSize = 10;
                 int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);

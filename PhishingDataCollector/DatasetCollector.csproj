@@ -26,7 +26,7 @@
     <OutputType>Library</OutputType>
     <NoStandardLibraries>false</NoStandardLibraries>
     <RootNamespace>PhishingDataCollector</RootNamespace>
-    <AssemblyName>PhishingDataCollector</AssemblyName>
+    <AssemblyName>DatasetCollector</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <DefineConstants>VSTO40</DefineConstants>
     <IsWebBootstrapper>False</IsWebBootstrapper>
@@ -36,14 +36,14 @@
     <PublishUrl>ftp://127.0.0.1:21/</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.0.1.9</ApplicationVersion>
+    <ApplicationVersion>1.1.0.3</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>1</UpdateInterval>
     <UpdateIntervalUnits>days</UpdateIntervalUnits>
-    <ProductName>Mail Data Collector</ProductName>
+    <ProductName>Dataset Collector</ProductName>
     <PublisherName>University of Bari</PublisherName>
-    <SupportUrl />
+    <SupportUrl>https://giuseppe-desolda.ddns.net/email-collector-endpoint/public</SupportUrl>
     <FriendlyName>PhishingDataCollector</FriendlyName>
     <OfficeApplicationDescription />
     <LoadBehavior>16</LoadBehavior>
