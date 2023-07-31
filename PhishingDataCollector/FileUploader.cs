@@ -83,7 +83,7 @@ public static class FileUploader
                         errors = true;
                     }
                 }
-            }, maxDegreeOfParallelism: 10);
+            }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
             //var count = bag.Count;
         }
         catch (Exception ex)

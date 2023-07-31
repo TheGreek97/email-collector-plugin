@@ -1,4 +1,5 @@
-﻿using com.sun.security.ntlm;
+﻿using System.Threading;
+using System.Threading.Tasks;
 using log4net;
 using log4net.Appender;
 using Microsoft.Office.Interop.Outlook;
@@ -12,10 +13,12 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using Dasync.Collections;
 using System.Windows.Forms;
 using System.Windows.Threading;
+using static sun.swing.MenuItemLayoutHelper;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace PhishingDataCollector
 {
@@ -34,7 +37,7 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = false;
+        private static readonly bool _executeInParallel = true;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
@@ -84,8 +87,10 @@ namespace PhishingDataCollector
         }
         public static void ShowClientID()
         {
+            Clipboard.SetText(ClientID.ToString());
             MessageBox.Show($"Il tuo ID client è:\n\n" +
                 ClientID + "\n\n" +
+                "Il client ID è stato salvato nei tuoi appunti, premi CTRL+V per incollarlo in un qualsiasi editor di testo.\n" +
                 $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni.", AppName);
             return;
         }
@@ -190,7 +195,7 @@ namespace PhishingDataCollector
                 return;
             } else if (dialogResult == DialogResult.Yes)
             {
-                dispatcher.Invoke(() => { Process.Start(ENDPOINT_BASE_URL); });
+                dispatcher.Invoke(() => { Process.Start(ENDPOINT_BASE_URL + "/review"); });  // the /review route lets the user only review the informed consent
             }
             MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
                 "Riceverai una notifica a breve.", AppName);
@@ -254,39 +259,42 @@ namespace PhishingDataCollector
                 int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
                 if (_executeInParallel)
                 {
-                    await dispatcher.InvokeAsync(() =>
+                    var mailToProcess = rawMailList.ToArray();
+                    var mailBatches = new List<RawMail[]>();
+                    for (int i = 0; i < N_Mails_To_Process; i += batchSize)
                     {
-                        Parallel.For(0, numBatches, i =>
-                        {
-                            Logger.Info("Batch " + (i + 1) + "/" + numBatches);
-                            Parallel.ForEach(rawMailList.Skip(i * batchSize).Take(batchSize), po,
-                                async m =>
-                                {
-                                    cts.Token.ThrowIfCancellationRequested();
-                                    Logger.Info("Processing mail with ID: " + m.EntryID);
+                        int batchLen = Math.Min(batchSize, N_Mails_To_Process - i);
+                        var batch = new RawMail[batchLen];
+                        Array.Copy(mailToProcess, i, batch, 0, batchLen);
+                        mailBatches.Add(batch);
+                    }
 
-                                    MailData data = new MailData(m);
-                                    // Extract features
-                                    try
+                        await mailBatches.ParallelForEachAsync(async mailChunk => {
+                            cts.Token.ThrowIfCancellationRequested();
+                            foreach (var mail in mailChunk)
+                            {
+                                MailData data = new MailData(mail);
+
+                                // Extract features
+                                try
+                                {
+                                    int completed = await Task.Run(() => data.ComputeFeatures()).
+                                    ContinueWith((prevTask) =>
                                     {
-                                        int completed = await Task.Run(() => data.ComputeFeatures()).
-                                        ContinueWith((prevTask) =>
-                                        {
-                                            MailList.Add(data);
-                                            SaveMail(data);
-                                            Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
-                                            MailProgress++;
-                                            return MailProgress;
-                                        });
-                                    }
-                                    catch (System.Exception e)
-                                    {
-                                        Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
-                                    }
+                                        MailList.Add(data);
+                                        SaveMail(data);
+                                        Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
+                                        MailProgress++;
+                                        return MailProgress;
+                                    });
                                 }
-                                );
-                        });
-                    }, DispatcherPriority.ApplicationIdle);
+                                catch (System.Exception e)
+                                {
+                                    Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
+                                }
+                            }
+                        }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
+
                 }
                 else  // Non-parallel computation
                 {
@@ -361,9 +369,9 @@ namespace PhishingDataCollector
                                 MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {Math.Round(RuntimeWatch.ElapsedMilliseconds/1000f, 2)} s). Grazie!",
                                     AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
-                            else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mail has been trasmitted
+                            else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mails have been trasmitted
                             {
-                                MessageBox.Show($"Problema nella trasmissione di {successfullyUploadedMails.Length - EmailsToUpload.Length} file su {EmailsToUpload.Length} totali ({successfullyUploadedMails.Length} file trasmessi correttamente)." +
+                                MessageBox.Show($"Problema nella trasmissione di {EmailsToUpload.Length - successfullyUploadedMails.Length } file su {EmailsToUpload.Length} totali ({successfullyUploadedMails.Length} file trasmessi correttamente)." +
                                     $"\nTi preghiamo di riprovare più tardi.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             }
                             else  // if no mail has been trasmitted successfully

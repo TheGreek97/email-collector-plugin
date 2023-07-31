@@ -98,6 +98,7 @@ namespace PhishingDataCollector
         // Utility regexes
         private Regex _ip_address_regex = new Regex(@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
         private Regex _url_address_regex = new Regex(@"(https?:\/\/|www\.)[-a-zA-Z0-9@:%._\-\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_+.~#?&\/=\-]*", RegexOptions.IgnoreCase);
+        private Regex _domain_regex = new Regex(@"(https?:\\/\\/|www\\.)?[-a-zA-Z0-9@:%._\\-\\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b", RegexOptions.IgnoreCase);
 
         // Collections of already processed urls using APIs
         private OriginIPCollection EmailOriginIPs = new OriginIPCollection();
@@ -385,7 +386,7 @@ namespace PhishingDataCollector
                     }
                     else
                     {  //  try to match a domain URL
-                        Match match_url = _url_address_regex.Match(_mailHeaders[i]);
+                        Match match_url = _domain_regex.Match(_mailHeaders[i]);
                         if (match_url.Success) { ServersInReceivedHeaders.Add(match_url.Value); }
                     }
                 }

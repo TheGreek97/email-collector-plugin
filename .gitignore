@@ -381,3 +381,5 @@ FodyWeavers.xsd
 /PhishingDataCollector/Resources/python/.env
 /PhishingDataCollector/Resources/python/it_core_news_sm
 /PhishingDataCollector/Resources/python/posTagger_it.zip
+/dataset_collector_outlook-latest-ita.zip
+/dataset_collector_outlook-latest-ita

@@ -36,7 +36,7 @@
     <PublishUrl>ftp://127.0.0.1:21/</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.1.0.3</ApplicationVersion>
+    <ApplicationVersion>1.1.0.4</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>1</UpdateInterval>
@@ -44,8 +44,9 @@
     <ProductName>Dataset Collector</ProductName>
     <PublisherName>University of Bari</PublisherName>
     <SupportUrl>https://giuseppe-desolda.ddns.net/email-collector-endpoint/public</SupportUrl>
-    <FriendlyName>PhishingDataCollector</FriendlyName>
-    <OfficeApplicationDescription />
+    <FriendlyName>Dataset Collector</FriendlyName>
+    <OfficeApplicationDescription>A collector of anonymized data from the emails in Outlook.
+Visit https://giuseppe-desolda.ddns.net/email-collector-endpoint/public to know more.</OfficeApplicationDescription>
     <LoadBehavior>16</LoadBehavior>
   </PropertyGroup>
   <ItemGroup>

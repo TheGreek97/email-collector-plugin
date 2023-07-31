@@ -97,9 +97,11 @@ namespace PhishingDataCollector
 
         public static string GetLanguage(string body_text)
         {
+            if (body_text == "") return "en";
             LanguageDetector detector = new LanguageDetector();
             detector.AddAllLanguages();
             var language = detector.Detect(body_text);
+            language = string.IsNullOrEmpty(language) ? "en" : language;
             return language;
         }
 
