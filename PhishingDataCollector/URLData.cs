@@ -29,6 +29,8 @@ namespace PhishingDataCollector
         };  // contains the frequencies of the letters in the English language
         private readonly string[] _commonFreeDomains = { "000webhostapp.com", "weebly.com", "umbler.com", "16mb.com", "godaddysites.com",
             "webcindario.com", "ddns.net", "joomla.org", "webnode.com", "wordpress.com", "altervista.org", "wix.com", "hostinger.", "sites.google.com" };
+        private readonly string[] shortenedDomains = { "t.co", "ow.ly", "bit.ly", "tinyurl.com", "rb.gy", "tiny.cc", "bit.do", "festyy.com", "cutt.ly", "goo.gl" };
+
         private VirusTotalScan VTScan { get; set; }
 
         // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
@@ -168,8 +170,6 @@ namespace PhishingDataCollector
 
             //Feature domain_length
             domain_length = _domainName.Length;
-            //Feature shortened_service
-            ComputeShortenedServiceFeature();
             //Feature IP_address
             IP_address = Regex.Match(_hostName, @"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}").Success;
             //Feature exe_file
@@ -206,6 +206,11 @@ namespace PhishingDataCollector
             ComputeDistanceFeatures();
             // Feature entropy_NAN_chars_URL
             ComputeEntropyNANCharsURLFeature();
+
+            //Feature shortened_service
+            ComputeShortenedServiceFeature();
+            //Feature free_hosting
+            ComputeFreeHostingFeature();
         }
 
         // These features will be computed later in batch 
@@ -306,7 +311,6 @@ namespace PhishingDataCollector
         private void ComputeShortenedServiceFeature() //Feature shortened_service
         {
             bool ret = false;
-            string[] shortenedDomains = { "t.co", "ow.ly", "bit.ly", "tinyurl.com", "rb.gy", "tiny.cc", "bit.do", "festyy.com", "cutt.ly", "goo.gl" };
             foreach (string s in shortenedDomains)
             {
                 if (ret = Regex.Match(_URL, s, RegexOptions.IgnoreCase).Success)
@@ -314,6 +318,19 @@ namespace PhishingDataCollector
             }
 
             shortened_service = ret;
+        }
+        private void ComputeFreeHostingFeature() //Feature free_hosting
+        {
+            free_hosting = false;
+            foreach (string service in _commonFreeDomains)
+            {
+                if (Regex.Match(_domainName, service, RegexOptions.IgnoreCase).Success)
+                {
+                    free_hosting = true;
+                    break;
+                }
+            }
+
         }
         private void ComputeEntropyCharsURLFeature()
         {
