@@ -17,8 +17,6 @@ using System.Collections.Concurrent;
 using Dasync.Collections;
 using System.Windows.Forms;
 using System.Windows.Threading;
-using static sun.swing.MenuItemLayoutHelper;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace PhishingDataCollector
 {
@@ -26,7 +24,7 @@ namespace PhishingDataCollector
     {
         //public static HttpClientHandler httpHandler = new HttpClientHandler();
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
-        public static int EMAIL_LIMIT = 10000;
+        public static int EMAIL_LIMIT = 1;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
         public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
         public static string POS_PATH;
@@ -123,11 +121,9 @@ namespace PhishingDataCollector
                     MessageBox.Show($"Il processo non è ancora in esecuzione.\n" +
                         $"Sono presenti dati processati che non sono stati ancora trasmessi ai nostri server. " +
                         $"Clicca sul tasto \"{TaskPaneControl.LaunchPluginBtn.Label}\" per riprendere il processo.", AppName);
-
                 }
                 else
                 {
-
                     MessageBox.Show($"Il processo non è ancora in esecuzione.\n" +
                         $"Per lanciare il plugin clicca sul tasto \"{TaskPaneControl.LaunchPluginBtn.Label}\".", AppName);
                     return;
@@ -148,7 +144,7 @@ namespace PhishingDataCollector
             //System.Windows.Forms.Application.DoEvents();
             InExecution = true;
             Logger.Info("Add-in executed");
-            var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+            var dispatcher = Dispatcher.CurrentDispatcher;
 
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();

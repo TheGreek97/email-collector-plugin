@@ -7,26 +7,29 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
-using com.sun.istack.@internal.logging;
 
 namespace PhishingDataCollector
 {
     internal static class BodyFeatures
     {
         private static readonly string[] _languages = { "en", "es", "fr", "pt", "it", "de" };
-        private static readonly string[] _phishyWords = { "account", "security", "user", "verify", "service", "valid", "required", "credentials",
-            "attention", "request", "suspended", "company", "bank", "deposit", "post", "money", "bank", "update", "verify"};
-        private static readonly string[] _scammyWords = { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
-            "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" };
-        private static readonly char[] _specialCharacters = { '@', '#', '_', '°', '[', ']', '{', '}', '$', '-', '+', '&', '%' };
-        private static readonly Dictionary<string, string> bankTranslations = new Dictionary<string, string>()
-        {
-            { "en", "bank" },
-            { "es", "banco"  },
-            { "fr", "banque"  },
-            { "pt", "bank"  },
-            { "it", "banca"  },
-            { "de", "bank"  }
+        private static readonly Dictionary<string, string[]> _phishyWords = new Dictionary<string, string[]>() {
+            { "en", new string[]{ "account", "security", "user", "verify", "service", "valid", "required", "credentials",
+            "attention", "request", "suspended", "company", "bank", "deposit", "post", "money", "update", "verify"} },
+            {"it", new string[] { "account", "conto", "sicurezza", "utente", "verifica", "servizio", "valido", "richiesto", "credenziali",
+            "attenzione", "richiesta", "sospeso", "azienda", "banca", "deposito", "posta", "soldi", "aggiorna", "verifica"} }
+        };
+        private static readonly Dictionary<string, string[]> _scammyWords = new Dictionary<string, string[]>() {
+            { "en", new string[] { "€", "£", "$", "customer", "prize", "donate", "buy", "pay", "congratulations", "death", "please",
+            "response", "dollar", "looking", "urgent", "warning", "win", "offer", "risk", "money", "transaction", "sex", "nude" } },
+            { "it", new string[] { "€",  "£", "$", "cliente", "premio", "donare", "dona", "comprare", "compra", "pagare", "paga", "congratulazioni", "morte", "prego", "favore",
+            "risposta", "dollari", "cerchiamo", "urgente", "attenzione", "vinto", "offerta", "rischio", "soldi", "transazione", "sesso", "nuda", "nude"} }
+        };
+        private static readonly Dictionary<string, string> bankTranslations = new Dictionary<string, string>() { 
+            { "en", "bank" }, { "es", "banco" }, { "fr", "banque" }, { "pt", "bank" }, { "it", "banca" }, { "de", "bank" } 
+        };
+        private static readonly Dictionary<string, string> accountTranslations = new Dictionary<string, string>() { 
+            { "en", "account" }, { "it", "conto|account" } 
         };
 
         public static float GetReadabilityIndex(string mailBody, string language = "en")
@@ -111,7 +114,7 @@ namespace PhishingDataCollector
 
             foreach (char c in body_text)
             {
-                if (_specialCharacters.Contains(c))
+                if (!char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c))
                 {
                     ret.Add(c);
                 }
@@ -119,10 +122,15 @@ namespace PhishingDataCollector
             return ret;
         }
 
-        public static int GetBankCountFeatures (string body_text, string language)
+        public static int GetBankCountFeature (string body_text, string language)
         {
-            int count = Regex.Match(body_text, bankTranslations[language].ToString(), RegexOptions.IgnoreCase).Length;
-            return count;
+            string translation = bankTranslations.ContainsKey(language) ? bankTranslations[language] : bankTranslations["en"];
+            return Regex.Matches(body_text, translation.ToString(), RegexOptions.IgnoreCase).Count;
+        }
+        public static int GetAccountCountFeature (string body_text, string language)
+        {
+            string translation = accountTranslations.ContainsKey(language) ? bankTranslations[language] : bankTranslations["en"];
+            return Regex.Matches(body_text, translation.ToString(), RegexOptions.IgnoreCase).Count;
         }
 
         /* This function computes 9 features:
@@ -139,8 +147,8 @@ namespace PhishingDataCollector
             }
             if (language == "") { language = GetLanguage(body_text); }
             int n_misspelled_words = 0, n_phishy = 0, n_scammy = 0;
-            float vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate;
-            float voc_rate, vdb_rate;
+            float vdb_adjectives_rate = 0, vdb_verbs_rate = 0, vdb_nouns_rate = 0, vdb_articles_rate = 0;
+            float voc_rate = 0, vdb_rate = 0;
             string wordsInBody = Regex.Replace(body_text, @"[^\w $€£]", " ");  // remove all non-words (keeps currency symbols)
             string[] bodyTokens = wordsInBody.Split(' ');
             string dictPath = GetDictionaryPath(language);
@@ -151,22 +159,24 @@ namespace PhishingDataCollector
                     if (!string.IsNullOrEmpty(word))
                     {
                         if (!spellChecker.Spell(word)) { n_misspelled_words++; }
-                        if (_phishyWords.Contains(word)) { n_phishy++; }
-                        if (_scammyWords.Contains(word)) { n_scammy++; }
+                        if (_phishyWords.ContainsKey(language) && _phishyWords[language].Contains(word)) { n_phishy++; }
+                        if (_scammyWords.ContainsKey(language) && _scammyWords[language].Contains(word)) { n_scammy++; }
                     }
                 }
             }
             // POS tagging
-
+            string[] pos_tags = new string[] { };
             string base_path_pos_files = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
+            string[] basic_dict = new string[] { };
+            int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
+
             if (language == "en")  // ENGLISH 
             {
                 string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
                 //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
                 EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
-                string[] pos_tags = posTagger.Tag(bodyTokens);
+                pos_tags = posTagger.Tag(bodyTokens);
                 // pos tags are defined this way: https://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html
-                int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
                 foreach (string tag in pos_tags)
                 {
                     if (tag.StartsWith("J")) { n_adjectives++; }  // tag == JJ or JJR or JJS
@@ -178,32 +188,19 @@ namespace PhishingDataCollector
                     string w = word.ToLower();
                     if (w == "the" || w == "a" || w == "an") { n_articles++; }
                 }
-                int n_words = pos_tags.Length;
-                vdb_adjectives_rate = n_adjectives / n_words;
-                vdb_verbs_rate = n_verbs / n_words;
-                vdb_nouns_rate = n_nouns / n_words;
-                vdb_articles_rate = n_articles / n_words;
-
-                // Rateos of words in basic and full vocabulary
+                // Get basic dictionary
                 string base_path_wordlists = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "wordList");
                 string basic_dict_path = Path.Combine(base_path_wordlists, "en_basic.txt");
                 //string full_dict_path = Path.Combine(base_path_wordlists, "en_full.txt");
                 //string[] full_dict = File.ReadAllLines(full_dict_path);
                 //int voc_words = 0;
-                string[] basic_dict = File.ReadAllLines(basic_dict_path);
-                int n_basic_voc_words = 0;
+                basic_dict = File.ReadAllLines(basic_dict_path);
 
-                foreach (string word in bodyTokens)
-                {
-                    if (basic_dict.Contains(word)) { n_basic_voc_words++; }
-                    //if (full_dict.Contains(word)) { voc_words++; }
-                }
-                voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
-                vdb_rate = (float)n_basic_voc_words / n_words;
             }
             else if (language == "it")
             {
-                var pos_tags = new List<string>();
+                // POS Tagging
+                var pos_tags_list = new List<string>();
                 string py_file_path = Path.Combine(ThisAddIn.POS_PATH, "posTagger_it.exe");
                 
                 var StartInfo = new ProcessStartInfo();
@@ -216,7 +213,6 @@ namespace PhishingDataCollector
                 try
                 {
                     var p = Process.Start(StartInfo);
-                    // ERROR it_core_news_sm is not found, cause it is searched in 'C:\Users\franc\Documents\' -> change the py file
                     StreamReader errors = p.StandardError;
                     StreamReader reader = p.StandardOutput;
                     /*if (errors != null) This can lead to deadlock - it should be read asynchronously (https://stackoverflow.com/questions/139593/processstartinfo-hanging-on-waitforexit-why)
@@ -233,7 +229,7 @@ namespace PhishingDataCollector
                     MatchCollection tag_matches = Regex.Matches(output, @"\'([^\']+)\'");
                     foreach (Match match in tag_matches)
                     {
-                        pos_tags.Add(match.Groups[1].Value);  // Groups[1] contains the group match (without '')
+                        pos_tags_list.Add(match.Groups[1].Value);  // Groups[1] contains the group match (without '')
                     }
                 } catch (Exception e)
                 {
@@ -257,7 +253,6 @@ namespace PhishingDataCollector
                     }
                     ThisAddIn.Logger.Info($"Processed POS tagging.");
                 }*/
-
                 /* IronPython does not include external libraries. 
                  * It would be nice to have it, cause IronPython multi-threading, differently from Python.Net
                 var engine = IronPython.Hosting.Python.CreateEngine();
@@ -273,41 +268,41 @@ namespace PhishingDataCollector
                 pos_tags = posTagsList.Cast<string>().ToArray();
                 */
 
-                int n_adjectives = 0, n_verbs = 0, n_nouns = 0, n_articles = 0;
-                foreach (var tag in pos_tags.ToArray())
+                pos_tags = pos_tags_list.ToArray();
+                foreach (var tag in pos_tags)
                 {
                     if (tag == "ADJ" || tag == "A" || tag == "NO" || tag == "AP") { n_adjectives++; }  // A = adjective, NO = ordinal number, AP = possessive adjective
                     else if (tag == "VERB" || tag == "V" || tag == "AUX") { n_verbs++; }  // V = verb, AUX = auxiliary   
                     else if (tag == "NOUN" || tag == "PROPN" || tag == "SP" || tag == "S") { n_nouns++; }  // SP = proper noun, S = common noun
                     else if (tag == "DET" || tag == "RD" || tag == "RI") { n_articles++; } // RD = definite article, RI = indefinite article
                 }
-                int n_words = pos_tags.Count();
-                n_words = n_words == 0 ? 1 : n_words;  // avoid division by 0
-                vdb_adjectives_rate = n_adjectives / n_words;
-                vdb_verbs_rate = n_verbs / n_words;
-                vdb_nouns_rate = n_nouns / n_words;
-                vdb_articles_rate = n_articles / n_words;
 
-                // Rateos of words in basic and full vocabulary
+                // Get basic dictionary
                 string base_path_wordlists = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "wordList");
                 string basic_dict_path = Path.Combine(base_path_wordlists, "it_basic.txt");
-                string[] basic_dict = File.ReadAllLines(basic_dict_path);
+                basic_dict = File.ReadAllLines(basic_dict_path);
+            }
+
+            int n_words = pos_tags.Length;
+            if (n_words > 0)
+            {
+                // Rateos of adjectives, verbs, nouns, and articles to all words 
+                vdb_adjectives_rate = n_adjectives / (float)n_words;
+                vdb_verbs_rate = n_verbs / (float)n_words;
+                vdb_nouns_rate = n_nouns / (float)n_words;
+                vdb_articles_rate = n_articles / (float)n_words;
+
                 int n_basic_voc_words = 0;
+
                 foreach (string word in bodyTokens)
                 {
                     if (basic_dict.Contains(word)) { n_basic_voc_words++; }
+                    //if (full_dict.Contains(word)) { voc_words++; }
                 }
-                voc_rate = (float)(n_words - n_misspelled_words) / n_words;  // n_mispelled_words are the number of words that are not in the dictionary
-                vdb_rate = (float)n_basic_voc_words / n_words;
-            }
-            else
-            {
-                voc_rate = 0;
-                vdb_rate = 0;
-                vdb_adjectives_rate = 0;
-                vdb_verbs_rate = 0;
-                vdb_nouns_rate = 0;
-                vdb_articles_rate = 0;
+
+                // Rateos of words in basic and full vocabulary
+                voc_rate = (n_words - n_misspelled_words) / (float)n_words;  // n_mispelled_words are the number of words that are not in the dictionary
+                vdb_rate = n_basic_voc_words / (float)n_words;
             }
 
             return (n_misspelled_words, n_phishy, n_scammy,
