@@ -15,6 +15,7 @@ namespace PhishingDataCollector
         public bool UserReadEmail;  // additional information
         public char[] SpecialCharactersBody;
         public DateTime EmailDate;  // additional information
+        public Dictionary<string, float> SensitiveWordsTFs;
 
         /* Features */
         // Header features
@@ -39,6 +40,7 @@ namespace PhishingDataCollector
         public float proportion_words_no_vowels;
         public int n_href_attr;
         public int account_count_in_body;
+        public float outbound_count_average;
         public int n_table_tag;
         public float automated_readability_index;
         public int n_link_mismatch;
@@ -199,9 +201,12 @@ namespace PhishingDataCollector
 
             //Feature bank_count_in_body
             bank_count_in_body = BodyFeatures.GetBankCountFeature(_mailBody, language);
-
+            //Feature outbound_count_average
+            outbound_count_average = BodyFeatures.GetOutboundCountAverageFeature(_mailBody, language);
             //Feature account_count_in_body
             account_count_in_body = BodyFeatures.GetAccountCountFeature(_mailBody, language);
+            //Needed for sensitive_words_body_TFIDF
+            SensitiveWordsTFs = BodyFeatures.GetSensitiveWordsTFs(_plainTextBody, n_words_body);
 
             //Features: n_misspelled_words, n_phishy, n_scammy, vdb_adjectives_rate, vdb_verbs_rate, vdb_nouns_rate, vdb_articles_rate, voc_rate, vdb_rate
             var word_features = BodyFeatures.GetWordsFeatures(_plainTextBody, language);

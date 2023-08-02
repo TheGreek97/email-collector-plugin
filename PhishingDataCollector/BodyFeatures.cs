@@ -25,6 +25,9 @@ namespace PhishingDataCollector
             { "it", new string[] { "€",  "£", "$", "cliente", "premio", "donare", "dona", "comprare", "compra", "pagare", "paga", "congratulazioni", "morte", "prego", "favore",
             "risposta", "dollari", "cerchiamo", "urgente", "attenzione", "vinto", "offerta", "rischio", "soldi", "transazione", "sesso", "nuda", "nude"} }
         };
+        private static readonly Dictionary<string, string[]> _sensitiveWords = new Dictionary<string, string[]>() {
+            { "en", new string[] { "unsubscribe", "wrote", "click", "pm", "dear", "remove", "contribution", "mailbox", "receive" } }
+        };
         private static readonly Dictionary<string, string> bankTranslations = new Dictionary<string, string>() { 
             { "en", "bank" }, { "es", "banco" }, { "fr", "banque" }, { "pt", "bank" }, { "it", "banca" }, { "de", "bank" } 
         };
@@ -127,10 +130,36 @@ namespace PhishingDataCollector
             string translation = bankTranslations.ContainsKey(language) ? bankTranslations[language] : bankTranslations["en"];
             return Regex.Matches(body_text, translation.ToString(), RegexOptions.IgnoreCase).Count;
         }
+        public static int GetOutboundCountAverageFeature (string body_text, string language)
+        {
+            //string translation = bankTranslations.ContainsKey(language) ? bankTranslations[language] : bankTranslations["en"];
+            return Regex.Matches(body_text, "outbound", RegexOptions.IgnoreCase).Count;
+        }
         public static int GetAccountCountFeature (string body_text, string language)
         {
             string translation = accountTranslations.ContainsKey(language) ? bankTranslations[language] : bankTranslations["en"];
             return Regex.Matches(body_text, translation.ToString(), RegexOptions.IgnoreCase).Count;
+        }
+        /* Returns the term frequency of the sensitive words (defined in this class) to compute a posteriori the feature sensitive_words_body_TFIDF
+         */
+        public static Dictionary<string, float> GetSensitiveWordsTFs (string plain_text_body, int? body_count=null)
+        {
+            var tfs = new Dictionary<string, float> ();  //dictionary containing the term frequencies for each sensitive word
+            if (body_count == null)
+            {
+                body_count = Regex.Matches(plain_text_body, @"(\w+)").Count;
+            }
+            /*if (! _sensitiveWords.ContainsKey(language))
+            {
+                language = "en";
+            }*/
+            foreach (string word in _sensitiveWords["en"])
+            {
+                int tf = Regex.Matches(plain_text_body, word, RegexOptions.IgnoreCase).Count;
+                if (body_count == 0) { body_count = 1; }  // avoid division by 0
+                tfs[word] = tf / (float) body_count;
+            }
+            return tfs;
         }
 
         /* This function computes 9 features:
