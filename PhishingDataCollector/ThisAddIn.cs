@@ -205,17 +205,22 @@ namespace PhishingDataCollector
                 {
                     mail_ID = mail_ID.TrimStart('0');
                 }
-                
-                if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
+                try
+                {
+                    if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
                     m.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
                     !ExistingEmails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
-                {
-                    dispatcher.Invoke(() =>
                     {
-                        RawMail raw = ExtractRawDataFromMailItem(m, folder_name);
-                        rawMailList.Add(raw);
-                    }, DispatcherPriority.ApplicationIdle);
-                    k++;
+                        dispatcher.Invoke(() =>
+                        {
+                            RawMail raw = ExtractRawDataFromMailItem(m, folder_name);
+                            rawMailList.Add(raw);
+                        }, DispatcherPriority.ApplicationIdle);
+                        k++;
+                    }
+                } catch (System.Exception ex)
+                {
+                    Logger.Error(ex);
                 }
             }
 
@@ -571,7 +576,7 @@ namespace PhishingDataCollector
             catch (System.Exception ex)
             {
                 Logger.Error($"SaveUploadedEmails: {ex.Message}");
-                Debug.WriteLine($"SaveUploadedEmails: {ex.Message}");
+                //Debug.WriteLine($"SaveUploadedEmails: {ex.Message}");
             }
         }
 
@@ -619,7 +624,7 @@ namespace PhishingDataCollector
                 }
                 catch (PathTooLongException)
                 {
-                    Logger.Error($"SaveMails PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
+                    Logger.Error($"SaveMails() - PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
         }
@@ -644,7 +649,7 @@ namespace PhishingDataCollector
             }
             catch (System.Exception e)
             {
-                Debug.WriteLine(e);
+                Logger.Error(e);
                 clientID = Guid.NewGuid();
             }
             return clientID;

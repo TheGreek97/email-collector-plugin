@@ -262,8 +262,8 @@ namespace PhishingDataCollector
                     }
                 } catch (Exception e)
                 {
-                    Debug.WriteLine(e);
-                    ThisAddIn.Logger.Error(e);
+                    //Debug.WriteLine(e);
+                    ThisAddIn.Logger.Error("Error during POS tagging - " + e.Message);
                 }
                 
                 /* Python.net implementation to run the python script for POS tagging 
@@ -349,7 +349,7 @@ namespace PhishingDataCollector
                 }
                 catch (Exception e)
                 {
-                    Debug.WriteLine(e);
+                    ThisAddIn.Logger.Error(e);
                 }
             }
             else  // Default language is English
