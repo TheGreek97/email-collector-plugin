@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Security.Policy;
 using System.Text.RegularExpressions;
 
 namespace PhishingDataCollector
@@ -31,7 +29,7 @@ namespace PhishingDataCollector
             "webcindario.com", "ddns.net", "joomla.org", "webnode.com", "wordpress.com", "altervista.org", "wix.com", "hostinger.", "sites.google.com" };
         private readonly string[] shortenedDomains = { "t.co", "ow.ly", "bit.ly", "tinyurl.com", "rb.gy", "tiny.cc", "bit.do", "festyy.com", "cutt.ly", "goo.gl" };
 
-        private VirusTotalScan VTScan { get; set; }
+        //private VirusTotalScan VTScan { get; set; }
 
         // Protocol + Host Name (e.g., https://www.studenti.uniba.it)
         public readonly string FullHostName;
@@ -213,7 +211,7 @@ namespace PhishingDataCollector
             ComputeFreeHostingFeature();
         }
 
-        // These features will be computed later in batch 
+        /* These features will be computed later in batch 
         public void ComputeDomainFeatures()
         {
             // DNS Lookup
@@ -240,11 +238,11 @@ namespace PhishingDataCollector
             https_not_trusted = whois.GetFeatureSelfSignedHTTPS();
 
             return;
-        }
+        }*/
 
         public string GetHostName() { return _hostName; }
-        public VirusTotalScan GetVTScan() { return VTScan; }
-        public void SetVTScan(VirusTotalScan vt) { VTScan = vt; }
+        //public VirusTotalScan GetVTScan() { return VTScan; }
+        //public void SetVTScan(VirusTotalScan vt) { VTScan = vt; }
 
         private void ComputeAvgDomainTokenLength ()
         {

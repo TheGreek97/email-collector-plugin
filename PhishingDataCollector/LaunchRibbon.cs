@@ -1,5 +1,4 @@
-﻿using java.awt;
-using Microsoft.Office.Tools.Ribbon;
+﻿using Microsoft.Office.Tools.Ribbon;
 
 namespace PhishingDataCollector
 {

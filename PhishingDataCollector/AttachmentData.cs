@@ -1,8 +1,6 @@
-﻿using com.sun.istack.@internal.logging;
-using Microsoft.Office.Interop.Outlook;
+﻿using Microsoft.Office.Interop.Outlook;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 
