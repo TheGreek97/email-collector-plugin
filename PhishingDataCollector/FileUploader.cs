@@ -104,15 +104,16 @@ public static class FileUploader
 
     public static async Task<bool> TestConnection(string url)
     {
-        // Test the connection to the server
+        // Test the connection to the remote server
         bool result;
         try
         {
             var response = await _httpClient.GetAsync(url);
             result = response.IsSuccessStatusCode;
         }
-        catch
-        {
+        catch (Exception e) 
+        { 
+            ThisAddIn.Logger.Error(e.Message);
             result = false;
         }
         finally

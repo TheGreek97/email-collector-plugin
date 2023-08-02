@@ -13,7 +13,6 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Collections.Concurrent;
 using Dasync.Collections;
 using System.Windows.Forms;
 using System.Windows.Threading;
@@ -163,19 +162,6 @@ namespace PhishingDataCollector
             {
                 Logger.Warn("Not an exchange account");
             }
-
-            var mailItems = new List<(MailItem, string)>();
-            foreach (var folder in mailFolders)
-            {
-                foreach (var item in folder.Items)
-                {
-                    if (item is MailItem item1)
-                    {
-                        mailItems.Add((item1, folder.Name));
-                    }
-                }
-                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
-            }
             
             // Prompt to user
             var dialogResult = MessageBox.Show("Grazie per la tua partecipazione alla raccolta dati.\n" +
@@ -194,35 +180,45 @@ namespace PhishingDataCollector
                 dispatcher.Invoke(() => { Process.Start(ENDPOINT_BASE_URL + "/review"); });  // the /review route lets the user only review the informed consent
             }
             MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
-                "Riceverai una notifica a breve.", AppName);
-            var tot_n_mails_to_process = mailItems.Count();
+                "Riceverai una notifica a breve.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
             List<RawMail> rawMailList = new List<RawMail>();
             int k = 0;
-            foreach ((MailItem m, string folder_name) in mailItems)
+
+            foreach (var folder in mailFolders)
             {
-                string mail_ID = m.EntryID;
-                if (SAVE_FILENAME_SPACE)
+                foreach (var item in folder.Items)
                 {
-                    mail_ID = mail_ID.TrimStart('0');
-                }
-                try
-                {
-                    if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
-                    m.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
-                    !ExistingEmails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
+                    if (item is MailItem item1)
                     {
-                        dispatcher.Invoke(() =>
+                        var mail = (MailItem)item;
+
+                        string mail_ID = mail.EntryID;
+                        if (SAVE_FILENAME_SPACE)
                         {
-                            RawMail raw = ExtractRawDataFromMailItem(m, folder_name);
-                            rawMailList.Add(raw);
-                        }, DispatcherPriority.ApplicationIdle);
-                        k++;
+                            mail_ID = mail_ID.TrimStart('0');
+                        }
+                        try
+                        {
+                            if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
+                            mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
+                            !ExistingEmails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
+                            {
+                                dispatcher.Invoke(() =>
+                                {
+                                    rawMailList.Add(ExtractRawDataFromMailItem(mail, folder.Name));
+                                }, DispatcherPriority.ApplicationIdle);
+                                k++;
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Logger.Error("Error in collecting mails - " + ex);
+                        }
                     }
-                } catch (System.Exception ex)
-                {
-                    Logger.Error(ex);
                 }
-            }
+                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
+            }            
 
             N_Mails_To_Process = rawMailList.Count();
             Logger.Info("Extracted data from " + N_Mails_To_Process + " emails");
@@ -242,7 +238,6 @@ namespace PhishingDataCollector
                 }
             }
 
-
             /* Feature Extraction from Mails */
             RuntimeWatch = Stopwatch.StartNew();
 
@@ -256,46 +251,48 @@ namespace PhishingDataCollector
             try
             {
                 MailProgress = 1;
-                int batchSize = 10;
+                int batchSize = 5;
                 int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
                 if (_executeInParallel)
                 {
-                    var mailToProcess = rawMailList.ToArray();
                     var mailBatches = new List<RawMail[]>();
                     for (int i = 0; i < N_Mails_To_Process; i += batchSize)
                     {
                         int batchLen = Math.Min(batchSize, N_Mails_To_Process - i);
                         var batch = new RawMail[batchLen];
-                        Array.Copy(mailToProcess, i, batch, 0, batchLen);
+                        Array.Copy(rawMailList.ToArray(), i, batch, 0, batchLen);
                         mailBatches.Add(batch);
                     }
+                    // try to free memory used by rawMailList
+                    rawMailList.TrimExcess();
+                    rawMailList = null;
 
-                        await mailBatches.ParallelForEachAsync(async mailChunk => {
-                            cts.Token.ThrowIfCancellationRequested();
-                            foreach (var mail in mailChunk)
+                    await mailBatches.ParallelForEachAsync(async mailChunk => {
+                        cts.Token.ThrowIfCancellationRequested();
+                        foreach (var mail in mailChunk)
+                        {
+                            MailData data = new MailData(mail);
+
+                            // Extract features
+                            try
                             {
-                                MailData data = new MailData(mail);
-
-                                // Extract features
-                                try
+                                int completed = await Task.Run(() => data.ComputeFeatures()).
+                                ContinueWith((prevTask) =>
                                 {
-                                    int completed = await Task.Run(() => data.ComputeFeatures()).
-                                    ContinueWith((prevTask) =>
-                                    {
-                                        MailList.Add(data);
-                                        SaveMail(data);
-                                        Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
-                                        MailProgress++;
-                                        return MailProgress;
-                                    });
-                                }
-                                catch (System.Exception e)
-                                {
-                                    Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
-                                }
+                                    MailList.Add(data);
+                                    SaveMail(data);
+                                    Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
+                                    MailProgress++;
+                                    return MailProgress;
+                                });
                             }
-                        }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
-
+                            catch (System.Exception e)
+                            {
+                                Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
+                            }
+                        }
+                    }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
+                    mailBatches = null;
                 }
                 else  // Non-parallel computation
                 {
@@ -393,6 +390,7 @@ namespace PhishingDataCollector
                 }
                 catch (System.Exception e)
                 {
+                    Logger.Error(e);
                     MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare. Dettagli errore: " + e.Message, 
                         AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     StopAddIn();
