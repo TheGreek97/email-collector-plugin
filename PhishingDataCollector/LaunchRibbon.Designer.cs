@@ -54,7 +54,7 @@
             this.group1.Items.Add(this.LaunchPluginBtn);
             this.group1.Items.Add(this.StateBtn);
             this.group1.Items.Add(this.AboutBtn);
-            this.group1.Label = "Mail Data Collector";
+            this.group1.Label = "Comandi";
             this.group1.Name = "group1";
             // 
             // LaunchPluginBtn
@@ -77,10 +77,9 @@
             // AboutBtn
             // 
             this.AboutBtn.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
-            this.AboutBtn.Label = "Informazioni";
+            this.AboutBtn.Label = "Mostra ID client";
             this.AboutBtn.Name = "AboutBtn";
             this.AboutBtn.ShowImage = true;
-            this.AboutBtn.Visible = false;
             this.AboutBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.AboutButton_Click);
             // 
             // LaunchRibbon

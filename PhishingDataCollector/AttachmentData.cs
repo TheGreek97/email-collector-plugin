@@ -1,7 +1,6 @@
 ﻿using Microsoft.Office.Interop.Outlook;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -67,7 +66,7 @@ namespace PhishingDataCollector
             }
             catch (System.Exception e)
             {
-                Debug.WriteLine(e);
+                ThisAddIn.Logger.Error("Error processing the attachment - " + e.Message);
                 return null;
             }
         }
@@ -86,7 +85,7 @@ namespace PhishingDataCollector
             }
             catch (System.Exception e)
             {
-                Debug.WriteLine(e);
+                ThisAddIn.Logger.Error("Error saving a copy of the attachment file - " + e.Message);
             }
             return save_path;
         }

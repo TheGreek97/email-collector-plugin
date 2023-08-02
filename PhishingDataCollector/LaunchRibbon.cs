@@ -1,5 +1,4 @@
-﻿using java.awt;
-using Microsoft.Office.Tools.Ribbon;
+﻿using Microsoft.Office.Tools.Ribbon;
 
 namespace PhishingDataCollector
 {
@@ -13,7 +12,6 @@ namespace PhishingDataCollector
 
         private void LaunchButton_Click(object sender, RibbonControlEventArgs e)
         {
-            LaunchPluginBtn.Enabled = false;
             ThisAddIn.ExecuteAddIn();
         }
 
@@ -25,6 +23,7 @@ namespace PhishingDataCollector
 
         private void AboutButton_Click(object sender, RibbonControlEventArgs e)
         {
+            ThisAddIn.ShowClientID();
         }
     }
 }

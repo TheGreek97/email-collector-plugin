@@ -20,7 +20,7 @@ public static class FileUploader
     {
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
-
+        
         Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
         
         // Here we store the emails that have been successfully uploaded
@@ -48,8 +48,9 @@ public static class FileUploader
             // Add Headers for HTTP requests
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);  // Add the authorization token
+            _httpClient.DefaultRequestHeaders.Add("ClientID", ThisAddIn.GetClientID().ToString());
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
-
+            
             var bag = new ConcurrentBag<object>();
             CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
             await chunks.ParallelForEachAsync(async mailChunk =>
@@ -67,7 +68,7 @@ public static class FileUploader
                     {
                         var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
                         bag.Add(response);
-                        Debug.WriteLine("Response status code: " + response.StatusCode);
+                        ThisAddIn.Logger.Info("Response status code: " + response.StatusCode);
                         if (response.IsSuccessStatusCode)
                         {
                             uploaded_mails.AddRange(mailChunk);  // add the email that have been uploaded correctly
@@ -78,17 +79,16 @@ public static class FileUploader
                     }
                     catch (Exception e)
                     {
-                        Debug.WriteLine(e);
+                        ThisAddIn.Logger.Error("Error uploading the data to remote server - " + e.Message);
                         errors = true;
                     }
                 }
-            }, maxDegreeOfParallelism: 10);
+            }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
             //var count = bag.Count;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("Error while uploading the files ");
-            Debug.WriteLine(ex);
+            ThisAddIn.Logger.Error("Error while uploading the files - " + ex.Message);
             try
             {
                 _httpClient.Dispose();
@@ -104,15 +104,16 @@ public static class FileUploader
 
     public static async Task<bool> TestConnection(string url)
     {
-        // Test the connection to the server
+        // Test the connection to the remote server
         bool result;
         try
         {
             var response = await _httpClient.GetAsync(url);
             result = response.IsSuccessStatusCode;
         }
-        catch
-        {
+        catch (Exception e) 
+        { 
+            ThisAddIn.Logger.Error(e.Message);
             result = false;
         }
         finally
