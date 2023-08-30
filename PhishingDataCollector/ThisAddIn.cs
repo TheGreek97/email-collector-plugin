@@ -34,17 +34,18 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = true;
+        private static readonly bool MultiThreadExecution = false;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        private static readonly bool SAVE_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
+        private static readonly bool LIMIT_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
         private static LaunchRibbon TaskPaneControl;
 
         // Variables initialized in the ThisAddIn_Startup function:
         public static ILog Logger;
         private static string RootDir;
         public static Guid ClientID;
+        public static NameSpace MapiNs;  // the namespace of the mapi
 
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
@@ -65,6 +66,7 @@ namespace PhishingDataCollector
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
             ClientID = GetClientID();
+            MapiNs = Globals.ThisAddIn.Application.GetNamespace("MAPI");
 
             TaskPaneControl = Globals.Ribbons.LaunchRibbon;
             TaskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
@@ -87,8 +89,8 @@ namespace PhishingDataCollector
             Clipboard.SetText(ClientID.ToString());
             MessageBox.Show($"Il tuo ID client è:\n\n" +
                 ClientID + "\n\n" +
-                "Il client ID è stato salvato nei tuoi appunti, premi CTRL+V per incollarlo in un qualsiasi editor di testo.\n" +
-                $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni.", AppName);
+                "Il client ID è stato salvato nei tuoi appunti, premi CTRL+V (o click destro > \"Incolla\") per incollarlo in un qualsiasi editor di testo.\n" +
+                $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni di amministrazione dei tuoi dati.", AppName);
             return;
         }
 
@@ -148,21 +150,6 @@ namespace PhishingDataCollector
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();
 
-            // Get the mail list
-            List<MAPIFolder> mailFolders = new List<MAPIFolder> {
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox),  // "inbox" folder
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems),  // "deleted" folder
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk) // "junk" folder
-            };
-            try
-            {
-                mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                Logger.Warn("Not an exchange account");
-            }
-            
             // Prompt to user
             var dialogResult = MessageBox.Show("Grazie per la tua partecipazione alla raccolta dati.\n" +
                 "Stiamo sistemando le email della tua casella di posta per estrarre e collezionare i dati anonimi.\n" +
@@ -182,46 +169,10 @@ namespace PhishingDataCollector
             MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
                 "Riceverai una notifica a breve.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-            List<RawMail> rawMailList = new List<RawMail>();
-            int k = 0;
-
-            foreach (var folder in mailFolders)
-            {
-                foreach (var item in folder.Items)
-                {
-                    if (item is MailItem item1)
-                    {
-                        var mail = (MailItem)item;
-
-                        string mail_ID = mail.EntryID;
-                        if (SAVE_FILENAME_SPACE)
-                        {
-                            mail_ID = mail_ID.TrimStart('0');
-                        }
-                        try
-                        {
-                            if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
-                            mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
-                            !ExistingEmails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
-                            {
-                                dispatcher.Invoke(() =>
-                                {
-                                    rawMailList.Add(ExtractRawDataFromMailItem(mail, folder.Name));
-                                }, DispatcherPriority.ApplicationIdle);
-                                k++;
-                            }
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Logger.Error("Error in collecting mails - " + ex);
-                        }
-                    }
-                }
-                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
-            }            
-
-            N_Mails_To_Process = rawMailList.Count();
-            Logger.Info("Extracted data from " + N_Mails_To_Process + " emails");
+            var mailFolders = GetMailFolders();
+            var mailIDsToProcess = GetEmailsToProcess(mailFolders, ExistingEmails);
+            N_Mails_To_Process = mailIDsToProcess.Count();
+            Logger.Info("Counted " + N_Mails_To_Process + " emails to process");
 
             if (N_Mails_To_Process > 0)
             {
@@ -251,26 +202,32 @@ namespace PhishingDataCollector
             try
             {
                 MailProgress = 1;
-                int batchSize = 5;
-                int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
-                if (_executeInParallel)
+                if (MultiThreadExecution)
                 {
-                    var mailBatches = new List<RawMail[]>();
-                    for (int i = 0; i < N_Mails_To_Process; i += batchSize)
+                    int batchSize = Environment.ProcessorCount / 2;  // optimize parallel threads
+                    batchSize = batchSize > 0 ? batchSize : 1;  // ensure the batch size is at least 1
+                    for (int i = 0; i < mailIDsToProcess.Count; i += batchSize)
                     {
-                        int batchLen = Math.Min(batchSize, N_Mails_To_Process - i);
-                        var batch = new RawMail[batchLen];
-                        Array.Copy(rawMailList.ToArray(), i, batch, 0, batchLen);
-                        mailBatches.Add(batch);
-                    }
-                    // try to free memory used by rawMailList
-                    rawMailList.TrimExcess();
-                    rawMailList = null;
-
-                    await mailBatches.ParallelForEachAsync(async mailChunk => {
-                        cts.Token.ThrowIfCancellationRequested();
-                        foreach (var mail in mailChunk)
+                        var mailBatch = new List<RawMail>(); // create the batch
+                        for (int j = 0; j < batchSize; j++)
                         {
+                            if (i + j >= mailIDsToProcess.Count)
+                            {
+                                break;
+                            }
+                            var mail = mailIDsToProcess[i+j];
+                            string mailID = mail.Item1;
+                            string folderID = mail.Item2;
+                            string folderName = mail.Item3;
+
+                            MailItem mailItem = MapiNs.GetItemFromID(mailID, folderID);
+                            RawMail rm = ExtractRawDataFromMailItem(mailItem, folderName);
+                            mailBatch.Add(rm);
+                        }
+                        // compute parallely the emails within the batch
+                        await mailBatch.ParallelForEachAsync(async mail =>
+                        {
+                            cts.Token.ThrowIfCancellationRequested();
                             MailData data = new MailData(mail);
 
                             // Extract features
@@ -290,14 +247,21 @@ namespace PhishingDataCollector
                             {
                                 Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                             }
-                        }
-                    }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
-                    mailBatches = null;
+                            //}
+                        }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
+                    }
                 }
                 else  // Non-parallel computation
                 {
-                    foreach (RawMail m in rawMailList)
+                    foreach (var mail in mailIDsToProcess)
                     {
+                        string mailID = mail.Item1;
+                        string folderID = mail.Item2;
+                        string folderName = mail.Item3;
+
+                        MailItem mailItem = MapiNs.GetItemFromID(mailID, folderID);
+                        RawMail m = ExtractRawDataFromMailItem(mailItem, folderName);
+
                         dispatcher.Invoke(() =>
                         {
                             MailData data = new MailData(m);
@@ -315,7 +279,7 @@ namespace PhishingDataCollector
                                 Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                             }
 
-                        }, DispatcherPriority.ApplicationIdle);
+                        }, DispatcherPriority.SystemIdle);
                     }
                 }
                 // feature extraction process ended
@@ -344,7 +308,6 @@ namespace PhishingDataCollector
                     StopAddIn();
                     return;
                 }
-                
 
                 /* Data trasmission to the end-point over HTTP(S) */
                 try
@@ -359,7 +322,7 @@ namespace PhishingDataCollector
                         {
                             RuntimeWatch.Restart();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            string file_ext = SAVE_FILENAME_SPACE ? "" : ".json";
+                            string file_ext = LIMIT_FILENAME_SPACE ? "" : ".json";
                             bool result;
                             (result, successfullyUploadedMails) = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, EmailsToUpload, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
@@ -408,6 +371,116 @@ namespace PhishingDataCollector
                 cts.Dispose();
             }
             return;
+        }
+
+        private static MAPIFolder[] GetMailFolders()
+        {
+            // Get the mail folders list
+            MAPIFolder defaultInbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
+            MAPIFolder defaultDeleted = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems);
+            MAPIFolder defaultSpam = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk);
+
+            List<MAPIFolder> mailFolders = new List<MAPIFolder>
+            {
+                defaultInbox,  
+                defaultDeleted,
+                defaultSpam 
+            };  // add the "inbox", "deleted" and "spam" folders by default
+
+
+            // Define recursive function
+            void GetFolders(MAPIFolder folder)
+            {
+                var folder_name = folder.FullFolderPath.Split('\\').LastOrDefault();
+                if (folder.Folders.Count == 0)
+                {
+                    if (folder_name != "PersonMetadata" &&  // PernsoMetadata folder must be ignored (belongs to a deprecated functionality)
+                       folder.EntryID != defaultInbox.EntryID &&  // ensure that we do not add the inbox folder twice
+                       folder.EntryID != defaultDeleted.EntryID &&
+                       folder.EntryID != defaultSpam.EntryID && 
+                       !mailFolders.Contains(folder))
+                    {
+                        mailFolders.Add(folder);
+                    }
+                }
+                else
+                {
+                    foreach (MAPIFolder subFolder in folder.Folders)
+                    {
+                        GetFolders(subFolder);
+                    }
+                }
+            }
+
+            foreach (MAPIFolder folder in Globals.ThisAddIn.Application.GetNamespace("MAPI").Folders)
+            {
+                GetFolders(folder);
+            }
+            return mailFolders.ToArray();
+        }
+
+
+        /** 
+         * Returns a list of tuples containing, for each email to process: the mail EntryID, the folder StoreID, and the folder name.
+        **/
+        private static List<(string, string, string)> GetEmailsToProcess(MAPIFolder[] mailFolders, string[] existingMails)
+        {
+            int k = 0;
+            var mailIDsToProcess = new List<(string, string, string)>();
+            string inbox_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox).EntryID;
+            string deleted_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems).EntryID;
+            string junk_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk).EntryID;
+            string sent_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderSentMail).EntryID;
+
+            foreach (MAPIFolder folder in mailFolders)
+            {
+                var mails = folder.Items.OfType<MailItem>();
+                string folderName;
+                if (folder.EntryID == inbox_folder)
+                {
+                    folderName = "inbox";
+                } else if (folder.EntryID == deleted_folder)
+                {
+                    folderName = "deleted";
+                } else if (folder.EntryID == junk_folder)
+                {
+                    folderName = "junk";
+                } else if (folder.EntryID == sent_folder)
+                {
+                    folderName = "sent";
+                } else
+                {
+                    folderName = "other";
+                }
+                int mails_in_folder_count = 0;
+                foreach (MailItem mail in mails)
+                {
+                    string mail_ID = mail.EntryID;
+                    if (LIMIT_FILENAME_SPACE)
+                    {
+                        mail_ID = mail_ID.TrimStart('0');
+                    }
+                    if (k >= EMAIL_LIMIT)  // Check that we have computed less emails than the limit
+                    { 
+                        break; 
+                    }
+                    
+                    if(mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
+                       !existingMails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
+                    {
+                        mailIDsToProcess.Add(
+                            (mail.EntryID,
+                            folder.StoreID,
+                            folderName)
+                        );
+                        k++;
+                        mails_in_folder_count++;
+                    }
+                }
+                Debug.WriteLine("Mails: "+ mails_in_folder_count  + " - Folder: " + folder.FullFolderPath + " (" + folderName + ") - Total mails: " + k );
+                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
+            }
+            return mailIDsToProcess;
         }
 
         private static RawMail ExtractRawDataFromMailItem(MailItem mail, string folder_name)
@@ -482,7 +555,7 @@ namespace PhishingDataCollector
                     Directory.CreateDirectory(outputFolder);
                     return new string[] { };
                 }
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     email_names = Directory.EnumerateFiles(outputFolder)
                     .Select(Path.GetFileName)
@@ -523,7 +596,7 @@ namespace PhishingDataCollector
                     Directory.CreateDirectory(uploadedFolder);
                     return existingEmails;
                 }
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     uploadedEmails = Directory.EnumerateFiles(uploadedFolder)
                     .Select(Path.GetFileName)  // the files don't have the extension ".json"
@@ -558,7 +631,7 @@ namespace PhishingDataCollector
                 foreach (var file in uploadedEmails)
                 {
                     string file_name = file;
-                    if (!SAVE_FILENAME_SPACE)  // if the files have the extension, add it
+                    if (!LIMIT_FILENAME_SPACE)  // if the files have the extension, add it
                     {
                         file_name += ".json";
                     }
@@ -567,7 +640,7 @@ namespace PhishingDataCollector
                     string moveTo = Path.Combine(uploadedFolder, file_name);
                     File.Copy(fileToMove, moveTo);
                     */
-                    File.Create(Path.Combine(uploadedFolder, file_name)).Dispose();  // creates an empty file and closes its stream
+                File.Create(Path.Combine(uploadedFolder, file_name)).Dispose();  // creates an empty file and closes its stream
                 }
 
             }
@@ -602,7 +675,7 @@ namespace PhishingDataCollector
             foreach (MailData mail in mails)
             {
                 string file_name;
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
                 }

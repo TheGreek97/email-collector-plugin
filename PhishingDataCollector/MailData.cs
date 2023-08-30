@@ -138,26 +138,32 @@ namespace PhishingDataCollector
             // -- Subject features
             ComputeSubjectFeatures();
 
-            // -- Body features
-            ComputeBodyFeatures();
-
-            // ---- Body features that involve links
-            ComputeLinkBodyFeatures();  // Side-effect: This also sets MailURLs
-
-            // -- URL features 
-            for (int i=0; i < MailURLs.Count; i++)
+            // -- Body and URLs features
+            if (!string.IsNullOrEmpty(_mailBody))
             {
-                bool urlAlreadyComputed = false;
-                for (int k = i-1; k >= 0; k--)
+                // -- Body Features
+                ComputeBodyFeatures();
+
+                // ---- Body features that involve links
+                ComputeLinkBodyFeatures();  // Side-effect: This also sets MailURLs
+
+                // -- URL features 
+                for (int i = 0; i < MailURLs.Count; i++)
                 {
-                    if (MailURLs[i].GetURL() == MailURLs[k].GetURL()) { 
-                        urlAlreadyComputed = true;
-                        MailURLs[i] = MailURLs[k];
-                        break; 
+                    bool urlAlreadyComputed = false;
+                    for (int k = i - 1; k >= 0; k--)
+                    {
+                        if (MailURLs[i].GetURL() == MailURLs[k].GetURL())
+                        {
+                            urlAlreadyComputed = true;
+                            MailURLs[i] = MailURLs[k];
+                            break;
+                        }
                     }
+                    if (urlAlreadyComputed) { break; }
+                    MailURLs[i]?.ComputeURLFeatures();
                 }
-                if (urlAlreadyComputed) { break; }
-                MailURLs[i]?.ComputeURLFeatures();
+
             }
 
             // -- Attachment features
@@ -165,6 +171,24 @@ namespace PhishingDataCollector
 
             //Debug.WriteLine("Features computed for mail with ID: " + _mailID);
             return;
+        }
+
+        private void ComputeSubjectFeatures()
+        {
+            if (!string.IsNullOrEmpty(_mailSubject))
+            {
+                n_words_subject = Regex.Matches(_mailSubject, @"(\w+)").Count;
+                n_char_subject = _mailSubject.Length;
+                is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
+                if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)3 : (sbyte)2; // 3 = re+fwd, 2 = fwd
+                }
+                else
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)1 : (sbyte)0; // 1 = re, 0 = none
+                }
+            }
         }
 
         private void ComputeBodyFeatures()
@@ -176,7 +200,7 @@ namespace PhishingDataCollector
             //Feature n_images
             n_images = Regex.Matches(_HTMLBody, @"<img", RegexOptions.IgnoreCase).Count;
             //Feature proportion_words_no_vowels
-            proportion_words_no_vowels = Regex.Matches(_mailBody, @"\b([^aeiou\s]+)\b", RegexOptions.IgnoreCase).Count / (float) n_words_body;
+            proportion_words_no_vowels = Regex.Matches(_mailBody, @"\b([^aeiou\s]+)\b", RegexOptions.IgnoreCase).Count / (float)n_words_body;
             //Feature n_href_attr
             n_href_attr = Regex.Matches(_HTMLBody, @"href\s*=", RegexOptions.IgnoreCase).Count;
             //Feature n_table_tag
@@ -184,7 +208,7 @@ namespace PhishingDataCollector
 
             //Feature cap_ratio
             var n_lowercase_chars_body = Regex.Matches(_plainTextBody, "[a-z]").Count;
-            cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / (float) n_lowercase_chars_body : 0;
+            cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / (float)n_lowercase_chars_body : 0;
 
             //Feature n_special_characters_body
             SpecialCharactersBody = BodyFeatures.GetSpecialChars(_plainTextBody).ToArray();
@@ -353,30 +377,6 @@ namespace PhishingDataCollector
             }*/
         }
 
-        private void ComputeSubjectFeatures()
-        {
-            if (!string.IsNullOrEmpty(_mailSubject))
-            {
-                n_words_subject = Regex.Matches(_mailSubject, @"(\w+)").Count;
-                n_char_subject = _mailSubject.Length;
-                is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
-                if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
-                {
-                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)3 : (sbyte)2; // 3 = re+fwd, 2 = fwd
-                }
-                else
-                {
-                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)1 : (sbyte)0; // 1 = re, 0 = none
-                }
-            }
-            else
-            {
-                n_words_subject = 0;
-                n_char_subject = 0;
-                is_non_ASCII_subject = false;
-                is_re_fwd_subject = 0;
-            }
-        }
 
         private void ComputeHeaderFeatures()
         {
