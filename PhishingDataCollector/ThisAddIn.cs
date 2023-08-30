@@ -25,7 +25,7 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
-        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
+        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000";
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -34,12 +34,12 @@ namespace PhishingDataCollector
         private static int N_Mails_To_Process;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool MultiThreadExecution = false;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
         private static readonly bool LIMIT_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
         private static LaunchRibbon TaskPaneControl;
+        private static bool ExecuteInMultithread = true;  // Tells the plugin to use more HW resources (CPU and RAM) to speed up the process
 
         // Variables initialized in the ThisAddIn_Startup function:
         public static ILog Logger;
@@ -202,7 +202,7 @@ namespace PhishingDataCollector
             try
             {
                 MailProgress = 1;
-                if (MultiThreadExecution)
+                if (ExecuteInMultithread)
                 {
                     int batchSize = Environment.ProcessorCount / 2;  // optimize parallel threads
                     batchSize = batchSize > 0 ? batchSize : 1;  // ensure the batch size is at least 1
@@ -333,19 +333,19 @@ namespace PhishingDataCollector
                             else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mails have been trasmitted
                             {
                                 MessageBox.Show($"Problema nella trasmissione di {EmailsToUpload.Length - successfullyUploadedMails.Length } file su {EmailsToUpload.Length} totali ({successfullyUploadedMails.Length} file trasmessi correttamente)." +
-                                    $"\nTi preghiamo di riprovare più tardi.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    $"\nTi preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             }
                             else  // if no mail has been trasmitted successfully
                             {
-                                MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show($"Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                             SaveUploadedEmails(successfullyUploadedMails);
                             StopAddIn();
-                        }, DispatcherPriority.ApplicationIdle);
+                        }, DispatcherPriority.SystemIdle);
                     }
                     else
                     {
-                        MessageBox.Show("Server temporaneamente non raggiungibile. Riprovare più tardi, grazie.", AppName,
+                        MessageBox.Show($"Server temporaneamente non raggiungibile. Ti preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}.", AppName,
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                         StopAddIn();
                         return;
@@ -698,6 +698,10 @@ namespace PhishingDataCollector
                     Logger.Error($"SaveMails() - PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
+        }
+        public static void SetMultiThreadExecution(bool limit_execution)
+        {
+            ExecuteInMultithread = ! limit_execution;
         }
 
         public static Guid GetClientID()

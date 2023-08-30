@@ -39,13 +39,17 @@
             this.LaunchPluginBtn = this.Factory.CreateRibbonButton();
             this.StateBtn = this.Factory.CreateRibbonButton();
             this.AboutBtn = this.Factory.CreateRibbonButton();
+            this.options = this.Factory.CreateRibbonGroup();
+            this.LimitResourcesCheckbox = this.Factory.CreateRibbonCheckBox();
             this.tab1.SuspendLayout();
             this.group1.SuspendLayout();
+            this.options.SuspendLayout();
             this.SuspendLayout();
             // 
             // tab1
             // 
             this.tab1.Groups.Add(this.group1);
+            this.tab1.Groups.Add(this.options);
             this.tab1.Label = "Dataset Collector";
             this.tab1.Name = "tab1";
             // 
@@ -82,6 +86,21 @@
             this.AboutBtn.ShowImage = true;
             this.AboutBtn.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.AboutButton_Click);
             // 
+            // options
+            // 
+            this.options.Items.Add(this.LimitResourcesCheckbox);
+            this.options.Label = "Opzioni";
+            this.options.Name = "options";
+            // 
+            // LimitResourcesCheckbox
+            // 
+            this.LimitResourcesCheckbox.Label = "Esegui in modalità risparmio risorse";
+            this.LimitResourcesCheckbox.Name = "LimitResourcesCheckbox";
+            this.LimitResourcesCheckbox.ScreenTip = "Spunta questa casella se vuoi far utilizzare meno risorse hardware - utile se il " +
+    "plugin causa un crash di Outlook (se spuntato, la velocità di esecuzione sarà li" +
+    "mitata)";
+            this.LimitResourcesCheckbox.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.LimitResourcesCheckbox_Click);
+            // 
             // LaunchRibbon
             // 
             this.Name = "LaunchRibbon";
@@ -92,6 +111,8 @@
             this.tab1.PerformLayout();
             this.group1.ResumeLayout(false);
             this.group1.PerformLayout();
+            this.options.ResumeLayout(false);
+            this.options.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -103,6 +124,8 @@
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup group1;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton StateBtn;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton AboutBtn;
+        internal Microsoft.Office.Tools.Ribbon.RibbonGroup options;
+        internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox LimitResourcesCheckbox;
     }
 
     partial class ThisRibbonCollection

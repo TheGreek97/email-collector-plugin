@@ -36,7 +36,7 @@
     <PublishUrl>ftp://127.0.0.1:21/</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.1.0.8</ApplicationVersion>
+    <ApplicationVersion>1.1.0.9</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>1</UpdateInterval>
