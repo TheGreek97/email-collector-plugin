@@ -202,6 +202,7 @@ namespace PhishingDataCollector
             if (language == "en")  // ENGLISH 
             {
                 string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
+                //ThisAddIn.Logger.Info("Opening POS tagger at " + modelPath);
                 //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
                 EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
                 pos_tags = posTagger.Tag(bodyTokens);
@@ -234,6 +235,7 @@ namespace PhishingDataCollector
                 
                 var StartInfo = new ProcessStartInfo();
                 StartInfo.FileName = py_file_path;
+                // ThisAddIn.Logger.Info("Opening POS tagger at " + py_file_path);
                 StartInfo.Arguments = ThisAddIn.POS_PATH + " \""+body_text+"\"";  //Pass here the location of the it_core_news_sm (and update the py file)
                 StartInfo.UseShellExecute = false;
                 StartInfo.RedirectStandardOutput = true;
@@ -263,7 +265,7 @@ namespace PhishingDataCollector
                 } catch (Exception e)
                 {
                     //Debug.WriteLine(e);
-                    ThisAddIn.Logger.Error("Error during POS tagging - " + e.Message);
+                    ThisAddIn.Logger.Error("Error during POS tagging - " + e);
                 }
                 
                 /* Python.net implementation to run the python script for POS tagging 

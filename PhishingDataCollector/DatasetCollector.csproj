@@ -36,7 +36,7 @@
     <PublishUrl>ftp://127.0.0.1:21/</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.1.0.9</ApplicationVersion>
+    <ApplicationVersion>1.1.0.12</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>1</UpdateInterval>
@@ -369,9 +369,9 @@ Visit https://giuseppe-desolda.ddns.net/email-collector-endpoint/public to know 
     <Content Include="Resources\POS\Models\EnglishPOS.nbin">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <EmbeddedResource Include="Resources\POS\posTagger_it.exe">
+    <Content Include="Resources\POS\posTagger_it.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </EmbeddedResource>
+    </Content>
     <Content Include="Resources\POS\posTagger_it.zip">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

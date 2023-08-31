@@ -4,9 +4,11 @@ pip install pyinstaller
 python3 -m PyInstaller --paths .\.env\Lib\site-packages\ .\posTagger_it.py
 
 Compress the ./dist/posTagger_it.py content in a .zip file called posTagger_it.zip.
-	The zip file must contain all the files directly in the root (not in the posTagger_it folder)
+	The zip file must contain all the files directly in the root (not in the posTagger_it subfolder)
+
 Add the "flag" file and the it_core_news_sm (spacy model downloaded from https://spacy.io/models/it#it_core_news_sm) to the zip archive
+
 Move the archive to the ../POS folder
+
 Extract the posTagger_it.exe file there and remove it from the archive
 
----

@@ -74,11 +74,11 @@ namespace PhishingDataCollector
 
             // Extract Python POS tagger for Italian
             POS_PATH = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
-            if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file -> (to avoid extracting the zip again)
+            if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file (if it is already extracted, avoid extracting the zip again)
                 string python_zip_path = Path.Combine(POS_PATH, "posTagger_it.zip");
                 ZipUtils.Extract(python_zip_path, null, POS_PATH);
+                //File.Delete(python_zip_path);  // delete the archive to free up space
             }
-                
 
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
@@ -140,8 +140,8 @@ namespace PhishingDataCollector
                 return;
             }
             // Change the ribbon buttons + setup vars
-            TaskPaneControl.LaunchPluginBtn.Enabled = false;
-            TaskPaneControl.StateBtn.Visible = true;
+            //TaskPaneControl.LaunchPluginBtn.Enabled = false;
+            //TaskPaneControl.StateBtn.Visible = true;
             //System.Windows.Forms.Application.DoEvents();
             InExecution = true;
             Logger.Info("Add-in executed");
@@ -301,9 +301,8 @@ namespace PhishingDataCollector
                 } 
                 else  // No mails to transmit -> the program can be closed
                 {
-                    
                     MessageBox.Show("Tutti i dati sono già stati estratti e caricati sui nostri server. Grazie!\n" +
-                        "È comunque possibile ri-lanciare la procedura dopo aver ricevuto nuove email.", AppName,
+                        "È comunque possibile rilanciare la procedura dopo aver ricevuto nuove email.", AppName,
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     StopAddIn();
                     return;
@@ -477,7 +476,7 @@ namespace PhishingDataCollector
                         mails_in_folder_count++;
                     }
                 }
-                Debug.WriteLine("Mails: "+ mails_in_folder_count  + " - Folder: " + folder.FullFolderPath + " (" + folderName + ") - Total mails: " + k );
+                //Debug.WriteLine("Mails: "+ mails_in_folder_count  + " - Folder: " + folder.FullFolderPath + " (" + folderName + ") - Total mails: " + k );
                 //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
             }
             return mailIDsToProcess;
@@ -740,7 +739,7 @@ namespace PhishingDataCollector
                 {
                     FileAppender fa = (FileAppender)a;
                     // Programmatically set this to the desired location here
-                    string logFileLocation = Path.Combine(log_base_path, "logs", "MailDataCollector.log");
+                    string logFileLocation = Path.Combine(log_base_path, "logs", AppName+".log");
 
                     // Uncomment the lines below if you want to retain the base file name
                     // and change the folder name...
@@ -759,7 +758,7 @@ namespace PhishingDataCollector
         {
             InExecution = false;  
             UploadingFiles = false;
-            TaskPaneControl.LaunchPluginBtn.Enabled = true;
+            //TaskPaneControl.LaunchPluginBtn.Enabled = true;
             System.Windows.Forms.Application.DoEvents();
         }
 
