@@ -77,7 +77,7 @@ namespace PhishingDataCollector
             if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file (if it is already extracted, avoid extracting the zip again)
                 string python_zip_path = Path.Combine(POS_PATH, "posTagger_it.zip");
                 ZipUtils.Extract(python_zip_path, null, POS_PATH);
-                //File.Delete(python_zip_path);  // delete the archive to free up space
+                //if (File.Exists(python_zip_path)) File.Delete(python_zip_path);  // delete the archive to free up space
             }
 
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
@@ -168,11 +168,18 @@ namespace PhishingDataCollector
             }
             MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
                 "Riceverai una notifica a breve.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            var mailFolders = GetMailFolders();
-            var mailIDsToProcess = GetEmailsToProcess(mailFolders, ExistingEmails);
-            N_Mails_To_Process = mailIDsToProcess.Count();
-            Logger.Info("Counted " + N_Mails_To_Process + " emails to process");
+           
+            var mailIDsToProcess = new List<(string, string, string)>();
+            await dispatcher.InvokeAsync(() =>
+                {
+                Logger.Info("Collecting email folders...");
+                var mailFolders = GetMailFolders();
+                Logger.Info("Collecting emails from " + mailFolders.Count() + " folders...");
+                mailIDsToProcess = GetEmailsToProcess(mailFolders, ExistingEmails);
+                N_Mails_To_Process = mailIDsToProcess.Count();
+                Logger.Info("Counted " + N_Mails_To_Process + " emails to process");
+                }, DispatcherPriority.SystemIdle
+            );
 
             if (N_Mails_To_Process > 0)
             {
@@ -426,59 +433,75 @@ namespace PhishingDataCollector
         {
             int k = 0;
             var mailIDsToProcess = new List<(string, string, string)>();
-            string inbox_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox).EntryID;
-            string deleted_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems).EntryID;
-            string junk_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk).EntryID;
-            string sent_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderSentMail).EntryID;
 
-            foreach (MAPIFolder folder in mailFolders)
+            try
             {
-                var mails = folder.Items.OfType<MailItem>();
-                string folderName;
-                if (folder.EntryID == inbox_folder)
+                string inbox_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox)?.EntryID;
+                string deleted_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems)?.EntryID;
+                string junk_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk)?.EntryID;
+                string sent_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderSentMail)?.EntryID;
+
+                foreach (MAPIFolder folder in mailFolders)
                 {
-                    folderName = "inbox";
-                } else if (folder.EntryID == deleted_folder)
-                {
-                    folderName = "deleted";
-                } else if (folder.EntryID == junk_folder)
-                {
-                    folderName = "junk";
-                } else if (folder.EntryID == sent_folder)
-                {
-                    folderName = "sent";
-                } else
-                {
-                    folderName = "other";
-                }
-                int mails_in_folder_count = 0;
-                foreach (MailItem mail in mails)
-                {
-                    string mail_ID = mail.EntryID;
-                    if (LIMIT_FILENAME_SPACE)
+                    var mails = folder.Items.OfType<MailItem>();
+                    string folderName;
+                    if (folder.EntryID == inbox_folder)
                     {
-                        mail_ID = mail_ID.TrimStart('0');
-                    }
-                    if (k >= EMAIL_LIMIT)  // Check that we have computed less emails than the limit
-                    { 
-                        break; 
-                    }
-                    
-                    if(mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
-                       !existingMails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
+                        folderName = "inbox";
+                    } else if (folder.EntryID == deleted_folder)
                     {
-                        mailIDsToProcess.Add(
-                            (mail.EntryID,
-                            folder.StoreID,
-                            folderName)
-                        );
-                        k++;
-                        mails_in_folder_count++;
+                        folderName = "deleted";
+                    } else if (folder.EntryID == junk_folder)
+                    {
+                        folderName = "junk";
+                    } else if (folder.EntryID == sent_folder)
+                    {
+                        folderName = "sent";
+                    } else
+                    {
+                        folderName = "other";
                     }
+                    int mails_in_folder_count = 0;
+                    foreach (MailItem mail in mails)
+                    {
+                        try
+                        {
+                            string mail_ID = mail.EntryID;
+                            if (LIMIT_FILENAME_SPACE)
+                            {
+                                mail_ID = mail_ID.TrimStart('0');
+                            }
+                            if (k >= EMAIL_LIMIT)  // Check that we have computed less emails than the limit
+                            {
+                                break;
+                            }
+
+                            if (mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
+                               !existingMails.Contains(mail_ID))  // Checks that the mail has not already been computed previously
+                            {
+                                mailIDsToProcess.Add(
+                                    (mail.EntryID,
+                                    folder.StoreID,
+                                    folderName)
+                                );
+                                k++;
+                                mails_in_folder_count++;
+                            }
+                        } catch (System.Exception e)
+                        {
+                            Logger.Error("Error with an email item - " + e);
+                            break;
+                        }
+                        
+                    }
+                    Logger.Info("Found "+ mails_in_folder_count  + " mails - Folder: " + folder.FullFolderPath + " (" + folderName + ") - Total mails: " + k );
+                    //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
                 }
-                //Debug.WriteLine("Mails: "+ mails_in_folder_count  + " - Folder: " + folder.FullFolderPath + " (" + folderName + ") - Total mails: " + k );
-                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
+            } catch (System.Runtime.InteropServices.COMException e)
+            {
+                Logger.Error("Error gathering the emails to process: " + e);
             }
+            
             return mailIDsToProcess;
         }
 
