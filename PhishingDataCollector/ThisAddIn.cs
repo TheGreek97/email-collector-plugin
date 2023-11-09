@@ -25,7 +25,6 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
-        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // "http://127.0.0.1:8000"; //
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -45,8 +44,9 @@ namespace PhishingDataCollector
         public static ILog Logger;
         private static string RootDir;
         public static Guid ClientID;
+        public static string ENDPOINT_BASE_URL; 
 
-
+        
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             //Get the assembly information
@@ -65,7 +65,7 @@ namespace PhishingDataCollector
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
             ClientID = GetClientID();
-
+                
             TaskPaneControl = Globals.Ribbons.LaunchRibbon;
             TaskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
@@ -76,8 +76,9 @@ namespace PhishingDataCollector
                 string python_zip_path = Path.Combine(POS_PATH, "posTagger_it.zip");
                 ZipUtils.Extract(python_zip_path, null, POS_PATH);
             }
-                
 
+            ENDPOINT_BASE_URL = Environment.GetEnvironmentVariable("ENDPOINT_BASE_URL");
+            
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
