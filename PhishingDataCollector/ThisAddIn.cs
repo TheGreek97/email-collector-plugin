@@ -47,8 +47,6 @@ namespace PhishingDataCollector
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
 
-        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; //"http://127.0.0.1:8000"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // ;
-
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -59,14 +57,15 @@ namespace PhishingDataCollector
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
         private static readonly string AppName = "Dataset Collector";
-        private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
-        private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        private static readonly string ENDPOINT_SENDLOGS_URL = ENDPOINT_BASE_URL + "/api/logs";
         private static readonly bool LIMIT_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
         private static LaunchRibbon TaskPaneControl;
         private static bool ExecuteInMultithread = true;  // Tells the plugin to use more HW resources (CPU and RAM) to speed up the process
 
         // Variables initialized in the ThisAddIn_Startup function:
+        public static string ENDPOINT_BASE_URL;
+        private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
+        private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
+        private static readonly string ENDPOINT_SENDLOGS_URL = ENDPOINT_BASE_URL + "/api/logs";
         public static ILog Logger;
         private static string RootDir;
         private static string LogFilePath;
@@ -75,7 +74,6 @@ namespace PhishingDataCollector
         public static NameSpace MapiNs;  // the namespace of the mapi
         private static DialogResult sendLogs;
 
-        public static string ENDPOINT_BASE_URL; 
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
