@@ -1,4 +1,22 @@
-﻿using LanguageDetection;
+﻿/***
+ *  This file is part of Dataset-Collector.
+
+    Dataset-Collector is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dataset-Collector is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Dataset-Collector.  If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ * ***/
+
+using LanguageDetection;
 using NHunspell;
 using OpenNLP.Tools.PosTagger;
 using System;
@@ -202,6 +220,7 @@ namespace PhishingDataCollector
             if (language == "en")  // ENGLISH 
             {
                 string modelPath = Path.Combine(base_path_pos_files, "Models", "EnglishPOS.nbin");
+                //ThisAddIn.Logger.Info("Opening POS tagger at " + modelPath);
                 //string tagDictDir = Path.Combine(base_path_pos_files, "WordNet", "dict");
                 EnglishMaximumEntropyPosTagger posTagger = new EnglishMaximumEntropyPosTagger(modelPath);
                 pos_tags = posTagger.Tag(bodyTokens);
@@ -234,6 +253,7 @@ namespace PhishingDataCollector
                 
                 var StartInfo = new ProcessStartInfo();
                 StartInfo.FileName = py_file_path;
+                // ThisAddIn.Logger.Info("Opening POS tagger at " + py_file_path);
                 StartInfo.Arguments = ThisAddIn.POS_PATH + " \""+body_text+"\"";  //Pass here the location of the it_core_news_sm (and update the py file)
                 StartInfo.UseShellExecute = false;
                 StartInfo.RedirectStandardOutput = true;
@@ -263,7 +283,7 @@ namespace PhishingDataCollector
                 } catch (Exception e)
                 {
                     //Debug.WriteLine(e);
-                    ThisAddIn.Logger.Error("Error during POS tagging - " + e.Message);
+                    ThisAddIn.Logger.Error("Error during POS tagging - " + e);
                 }
                 
                 /* Python.net implementation to run the python script for POS tagging 

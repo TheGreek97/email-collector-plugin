@@ -25,5 +25,15 @@ namespace PhishingDataCollector
         {
             ThisAddIn.ShowClientID();
         }
+
+        private void LimitResourcesCheckbox_Click(object sender, RibbonControlEventArgs e)
+        {
+            ThisAddIn.SetMultiThreadExecution(LimitResourcesCheckbox.Checked);
+        }
+
+        private void button2_Click(object sender, RibbonControlEventArgs e)
+        {
+            ThisAddIn.SendLogs();
+        }
     }
 }

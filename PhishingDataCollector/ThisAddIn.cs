@@ -1,4 +1,22 @@
-﻿using System.Threading;
+﻿/***
+ *  This file is part of Dataset-Collector.
+
+    Dataset-Collector is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dataset-Collector is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Dataset-Collector.  If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ * ***/
+
+using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 using log4net.Appender;
@@ -16,6 +34,9 @@ using System.Text.RegularExpressions;
 using Dasync.Collections;
 using System.Windows.Forms;
 using System.Windows.Threading;
+using System.Deployment.Application;
+using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace PhishingDataCollector
 {
@@ -25,28 +46,37 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
+
+        public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; //"http://127.0.0.1:8000"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // ;
+
         public static string POS_PATH;
 
         private static bool InExecution = false;
         private static bool UploadingFiles = false;
         private static int MailProgress;
         private static int N_Mails_To_Process;
+        private static int N_Mails_To_Upload;
         private static Stopwatch RuntimeWatch;
         private static readonly List<MailData> MailList = new List<MailData>(); // Initialize empty array to store the features of each email
-        private static readonly bool _executeInParallel = true;
         private static readonly string AppName = "Dataset Collector";
         private static readonly string ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
         private static readonly string ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        private static readonly bool SAVE_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
+        private static readonly string ENDPOINT_SENDLOGS_URL = ENDPOINT_BASE_URL + "/api/logs";
+        private static readonly bool LIMIT_FILENAME_SPACE = true;  // If true, the filenames of the email features will be shortened and lack the extension
         private static LaunchRibbon TaskPaneControl;
+        private static bool ExecuteInMultithread = true;  // Tells the plugin to use more HW resources (CPU and RAM) to speed up the process
 
         // Variables initialized in the ThisAddIn_Startup function:
         public static ILog Logger;
         private static string RootDir;
+        private static string LogFilePath;
         public static Guid ClientID;
+
+        public static NameSpace MapiNs;  // the namespace of the mapi
+        private static DialogResult sendLogs;
+
         public static string ENDPOINT_BASE_URL; 
 
-        
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             //Get the assembly information
@@ -65,16 +95,20 @@ namespace PhishingDataCollector
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
             ClientID = GetClientID();
-                
+
+            Logger.Info("Plugin started - Client ID : " + ClientID.ToString());
+            MapiNs = Globals.ThisAddIn.Application.GetNamespace("MAPI");
+
             TaskPaneControl = Globals.Ribbons.LaunchRibbon;
             TaskPaneControl.RibbonType = "Microsoft.Outlook.Explorer";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
             // Extract Python POS tagger for Italian
             POS_PATH = Path.Combine(Environment.GetEnvironmentVariable("RESOURCE_FOLDER"), "POS");
-            if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file -> (to avoid extracting the zip again)
+            if (!File.Exists(Path.Combine(POS_PATH, "flag"))) {  // in the zip file there is a "flag" file (if it is already extracted, avoid extracting the zip again)
                 string python_zip_path = Path.Combine(POS_PATH, "posTagger_it.zip");
                 ZipUtils.Extract(python_zip_path, null, POS_PATH);
+                //if (File.Exists(python_zip_path)) File.Delete(python_zip_path);  // delete the archive to free up space
             }
 
             ENDPOINT_BASE_URL = Environment.GetEnvironmentVariable("ENDPOINT_BASE_URL");
@@ -88,8 +122,8 @@ namespace PhishingDataCollector
             Clipboard.SetText(ClientID.ToString());
             MessageBox.Show($"Il tuo ID client è:\n\n" +
                 ClientID + "\n\n" +
-                "Il client ID è stato salvato nei tuoi appunti, premi CTRL+V per incollarlo in un qualsiasi editor di testo.\n" +
-                $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni.", AppName);
+                "Il client ID è stato salvato nei tuoi appunti, premi CTRL+V (o click destro > \"Incolla\") per incollarlo in un qualsiasi editor di testo.\n" +
+                $"Comunicacelo nel caso ti sia richiesto per svolgere alcune operazioni di amministrazione dei tuoi dati.", AppName);
             return;
         }
 
@@ -104,7 +138,7 @@ namespace PhishingDataCollector
                 }
                 if (UploadingFiles)
                 {
-                    MessageBox.Show("Il processo è in esecuzione! I dati sono in fase di caricamento verso i nostri server. Riceverai una notifica al termine." +
+                    MessageBox.Show($"Il processo è in esecuzione! I dati sono in fase di caricamento verso i nostri server ({FileUploader.NSentEmail}/{N_Mails_To_Upload} file caricati).\nRiceverai una notifica al termine." +
                     "\nNon chiudere il client di posta durante l'operazione.", AppName);
                     return;
                 }
@@ -139,31 +173,19 @@ namespace PhishingDataCollector
                 return;
             }
             // Change the ribbon buttons + setup vars
-            TaskPaneControl.LaunchPluginBtn.Enabled = false;
-            TaskPaneControl.StateBtn.Visible = true;
+            //TaskPaneControl.LaunchPluginBtn.Enabled = false;
+            //TaskPaneControl.StateBtn.Visible = true;
             //System.Windows.Forms.Application.DoEvents();
             InExecution = true;
             Logger.Info("Add-in executed");
             var dispatcher = Dispatcher.CurrentDispatcher;
+            //FileUploader.SendLogs(LogFilePath, ENDPOINT_SENDLOGS_URL);
+
+            sendLogs = DialogResult.None;
 
             // Get the list of already processed emails (if the plugin was previously executed)
             string[] ExistingEmails = GetExistingEmails();
 
-            // Get the mail list
-            List<MAPIFolder> mailFolders = new List<MAPIFolder> {
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox),  // "inbox" folder
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems),  // "deleted" folder
-                Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk) // "junk" folder
-            };
-            try
-            {
-                mailFolders.Add(Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olPublicFoldersAllPublicFolders));
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                Logger.Warn("Not an exchange account");
-            }
-            
             // Prompt to user
             var dialogResult = MessageBox.Show("Grazie per la tua partecipazione alla raccolta dati.\n" +
                 "Stiamo sistemando le email della tua casella di posta per estrarre e collezionare i dati anonimi.\n" +
@@ -180,49 +202,20 @@ namespace PhishingDataCollector
             {
                 dispatcher.Invoke(() => { Process.Start(ENDPOINT_BASE_URL + "/review"); });  // the /review route lets the user only review the informed consent
             }
-            MessageBox.Show("Attendi che le email nella tua casella siano raccolte.\n" +
+            MessageBox.Show("Attendi che le email nella tua casella siano raccolte. \nIl programma potrebbe non rispondere per qualche secondo.\n" +
                 "Riceverai una notifica a breve.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            List<RawMail> rawMailList = new List<RawMail>();
-            int k = 0;
-
-            foreach (var folder in mailFolders)
-            {
-                foreach (var item in folder.Items)
+           
+            var mailIDsToProcess = new List<(string, string, string)>();
+            await dispatcher.InvokeAsync(() =>
                 {
-                    if (item is MailItem item1)
-                    {
-                        var mail = (MailItem)item;
-
-                        string mail_ID = mail.EntryID;
-                        if (SAVE_FILENAME_SPACE)
-                        {
-                            mail_ID = mail_ID.TrimStart('0');
-                        }
-                        try
-                        {
-                            if (k < EMAIL_LIMIT &&  // Check that we have computed less emails than the limit
-                            mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
-                            !ExistingEmails.Contains(mail_ID)) // Checks that the mail has not already been computed previously
-                            {
-                                dispatcher.Invoke(() =>
-                                {
-                                    rawMailList.Add(ExtractRawDataFromMailItem(mail, folder.Name));
-                                }, DispatcherPriority.ApplicationIdle);
-                                k++;
-                            }
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Logger.Error("Error in collecting mails - " + ex);
-                        }
-                    }
-                }
-                //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
-            }            
-
-            N_Mails_To_Process = rawMailList.Count();
-            Logger.Info("Extracted data from " + N_Mails_To_Process + " emails");
+                Logger.Info("Collecting email folders...");
+                var mailFolders = GetMailFolders();
+                Logger.Info("Collecting emails from " + mailFolders.Count() + " folders...");
+                mailIDsToProcess = GetEmailsToProcess(mailFolders, ExistingEmails);
+                N_Mails_To_Process = mailIDsToProcess.Count();
+                Logger.Info("Counted " + N_Mails_To_Process + " emails to process");
+                }, DispatcherPriority.SystemIdle
+            );
 
             if (N_Mails_To_Process > 0)
             {
@@ -252,26 +245,32 @@ namespace PhishingDataCollector
             try
             {
                 MailProgress = 1;
-                int batchSize = 5;
-                int numBatches = (int)Math.Ceiling((double)N_Mails_To_Process / batchSize);
-                if (_executeInParallel)
+                if (ExecuteInMultithread)
                 {
-                    var mailBatches = new List<RawMail[]>();
-                    for (int i = 0; i < N_Mails_To_Process; i += batchSize)
+                    int batchSize = Environment.ProcessorCount / 2;  // optimize parallel threads
+                    batchSize = batchSize > 0 ? batchSize : 1;  // ensure the batch size is at least 1
+                    for (int i = 0; i < mailIDsToProcess.Count; i += batchSize)
                     {
-                        int batchLen = Math.Min(batchSize, N_Mails_To_Process - i);
-                        var batch = new RawMail[batchLen];
-                        Array.Copy(rawMailList.ToArray(), i, batch, 0, batchLen);
-                        mailBatches.Add(batch);
-                    }
-                    // try to free memory used by rawMailList
-                    rawMailList.TrimExcess();
-                    rawMailList = null;
-
-                    await mailBatches.ParallelForEachAsync(async mailChunk => {
-                        cts.Token.ThrowIfCancellationRequested();
-                        foreach (var mail in mailChunk)
+                        var mailBatch = new List<RawMail>(); // create the batch
+                        for (int j = 0; j < batchSize; j++)
                         {
+                            if (i + j >= mailIDsToProcess.Count)
+                            {
+                                break;
+                            }
+                            var mail = mailIDsToProcess[i+j];
+                            string mailID = mail.Item1;
+                            string folderID = mail.Item2;
+                            string folderName = mail.Item3;
+
+                            MailItem mailItem = MapiNs.GetItemFromID(mailID, folderID);
+                            RawMail rm = ExtractRawDataFromMailItem(mailItem, folderName);
+                            mailBatch.Add(rm);
+                        }
+                        // compute parallely the emails within the batch
+                        await mailBatch.ParallelForEachAsync(async mail =>
+                        {
+                            cts.Token.ThrowIfCancellationRequested();
                             MailData data = new MailData(mail);
 
                             // Extract features
@@ -291,14 +290,21 @@ namespace PhishingDataCollector
                             {
                                 Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                             }
-                        }
-                    }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
-                    mailBatches = null;
+                            //}
+                        }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
+                    }
                 }
                 else  // Non-parallel computation
                 {
-                    foreach (RawMail m in rawMailList)
+                    foreach (var mail in mailIDsToProcess)
                     {
+                        string mailID = mail.Item1;
+                        string folderID = mail.Item2;
+                        string folderName = mail.Item3;
+
+                        MailItem mailItem = MapiNs.GetItemFromID(mailID, folderID);
+                        RawMail m = ExtractRawDataFromMailItem(mailItem, folderName);
+
                         dispatcher.Invoke(() =>
                         {
                             MailData data = new MailData(m);
@@ -316,12 +322,13 @@ namespace PhishingDataCollector
                                 Logger.Error("Problem processing mail with ID: " + data.GetID() + "\nError details: " + e.Message);
                             }
 
-                        }, DispatcherPriority.ApplicationIdle);
+                        }, DispatcherPriority.SystemIdle);
                     }
                 }
                 // feature extraction process ended
                 ExistingEmails = GetExistingEmails();  // retrieve all the computed emails 
                 string[] EmailsToUpload = GetEmailsToUpload(ExistingEmails);  // check which of them must be uploaded
+                N_Mails_To_Upload = EmailsToUpload.Length;
                 RuntimeWatch.Stop();
                 string msg = "";
                 if (MailProgress > 1)  // 1 or more mails have been processed 
@@ -329,86 +336,215 @@ namespace PhishingDataCollector
                     msg = "Esportazione dei dati estratti dalle email completata!\n" +
                         $"Processate {MailProgress - 1} email in {Math.Round(RuntimeWatch.ElapsedMilliseconds / 1000f, 2)} secondi.\n";
                 }
-                if (EmailsToUpload.Length > 0)  // 1 or more mails must be trasmitted to the endpoint 
+                if (N_Mails_To_Upload > 0)  // 1 or more mails must be trasmitted to the endpoint 
                 {
-                    msg += "I dati (ricavati da " + EmailsToUpload.Length + " email) saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
+                    msg += "I dati (ricavati da " + N_Mails_To_Upload + " email) saranno ora spediti ai nostri server per scopi di ricerca e trattati ai sensi della GDPR.\n" +
                     "I dati raccolti risultano da un processo di elaborazione delle email della casella di posta e sono completamente anonimi, " +
                     "in quanto non è possibile risalire al contenuto originale delle email o ai soggetti coinvolti.";
                     MessageBox.Show(msg, AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 } 
                 else  // No mails to transmit -> the program can be closed
                 {
-                    
                     MessageBox.Show("Tutti i dati sono già stati estratti e caricati sui nostri server. Grazie!\n" +
-                        "È comunque possibile ri-lanciare la procedura dopo aver ricevuto nuove email.", AppName,
+                        "È comunque possibile rilanciare la procedura dopo aver ricevuto nuove email.", AppName,
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     StopAddIn();
                     return;
                 }
-                
 
                 /* Data trasmission to the end-point over HTTP(S) */
+                Logger.Info("Starting the upload of "+ N_Mails_To_Upload + " files");
                 try
                 {
                     string[] successfullyUploadedMails;
                     UploadingFiles = true;
                     bool connectionOK = await FileUploader.TestConnection(ENDPOINT_TEST_URL);
-
                     if (connectionOK)
                     {
+                        Logger.Info("Connection to remote server OK");
+
                         await dispatcher.InvokeAsync(async () =>
                         {
                             RuntimeWatch.Restart();
                             // MessageBox.Show("Upload dei dati iniziato.", AppName);
-                            string file_ext = SAVE_FILENAME_SPACE ? "" : ".json";
-                            bool result;
+                            string file_ext = LIMIT_FILENAME_SPACE ? "" : ".json";
+                            bool result = false;
                             (result, successfullyUploadedMails) = await FileUploader.UploadFiles(ENDPOINT_UPLOAD_URL, EmailsToUpload, cts, Environment.GetEnvironmentVariable("OUTPUT_FOLDER"), file_ext);
                             if (result)
                             {
-                                MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {Math.Round(RuntimeWatch.ElapsedMilliseconds/1000f, 2)} s). Grazie!",
-                                    AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                sendLogs = MessageBox.Show($"Tutti i dati sono stati trasmessi con successo ({successfullyUploadedMails.Length} file caricati in {Math.Round(RuntimeWatch.ElapsedMilliseconds/1000f, 2)} s). Grazie!\nVuoi mandarci dati anonimi di diagnostica per migliorare il programma?",
+                                    AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                             }
-                            else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < EmailsToUpload.Length)  // some mails have been trasmitted
+                            else if (successfullyUploadedMails.Length != 0 && successfullyUploadedMails.Length < N_Mails_To_Upload)  // some mails have been trasmitted
                             {
-                                MessageBox.Show($"Problema nella trasmissione di {EmailsToUpload.Length - successfullyUploadedMails.Length } file su {EmailsToUpload.Length} totali ({successfullyUploadedMails.Length} file trasmessi correttamente)." +
-                                    $"\nTi preghiamo di riprovare più tardi.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                sendLogs = MessageBox.Show($"Problema nella trasmissione di {N_Mails_To_Upload - successfullyUploadedMails.Length } file su {N_Mails_To_Upload} totali ({successfullyUploadedMails.Length} file sono stati trasmessi correttamente)." +
+                                    $"\nTi preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}.\nVuoi mandarci dati di diagnostica anonimi per investigare le potenziali cause del problema?", AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                             }
                             else  // if no mail has been trasmitted successfully
                             {
-                                MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi.", AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                sendLogs = MessageBox.Show($"Problema nella trasmissione dei dati. Ti preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}. \nVuoi mandarci dati di diagnostica anonimi per investigare le potenziali cause del problema?", AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+
                             }
                             SaveUploadedEmails(successfullyUploadedMails);
                             StopAddIn();
-                        }, DispatcherPriority.ApplicationIdle);
+                        }, DispatcherPriority.SystemIdle);
                     }
                     else
                     {
-                        MessageBox.Show("Server temporaneamente non raggiungibile. Riprovare più tardi, grazie.", AppName,
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Logger.Error("Error connecting to remote server");
+                        sendLogs = MessageBox.Show($"Server temporaneamente non raggiungibile. Ti preghiamo di riprovare più tardi cliccando nuovamente su {TaskPaneControl.LaunchPluginBtn.Label}.\nVuoi mandarci dati di diagnostica anonimi per investigare le potenziali cause del problema?", AppName,
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                         StopAddIn();
                         return;
                     }
                 }
                 catch (System.Exception e)
                 {
-                    Logger.Error(e);
-                    MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare. Dettagli errore: " + e.Message, 
-                        AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    Logger.Error("Error trasmitting data: " + e);
+                    sendLogs = MessageBox.Show("Problema nella trasmissione dei dati. Ti preghiamo di riprovare. Dettagli errore: " + e.Message + "\nTi chiediamo di mandarci dati di diagnostica anonimi per investigare l'errore. Accetti?", 
+                        AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                     StopAddIn();
                 }
             }
             catch (System.Exception e)
             {
-                Logger.Error("(Main err): " + e);
-                MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " + e.Message, 
-                    AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.Error("Error in main: " + e);
+                sendLogs = MessageBox.Show("Problema con l'esportazione dei dati. Dettagli errore: " + e.Message + "\nTi chiediamo di mandarci dati di diagnostica anonimi per investigare l'errore. Accetti?", 
+                    AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                 StopAddIn();
             }
             finally
             {
                 cts.Dispose();
+
             }
             return;
+        }
+
+        private static MAPIFolder[] GetMailFolders()
+        {
+            // Get the mail folders list
+            MAPIFolder defaultInbox = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
+            MAPIFolder defaultDeleted = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems);
+            MAPIFolder defaultSpam = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk);
+
+            List<MAPIFolder> mailFolders = new List<MAPIFolder>
+            {
+                defaultInbox,  
+                defaultDeleted,
+                defaultSpam 
+            };  // add the "inbox", "deleted" and "spam" folders by default
+
+
+            // Define recursive function
+            void GetFolders(MAPIFolder folder)
+            {
+                var folder_name = folder.FullFolderPath.Split('\\').LastOrDefault();
+                if (folder.Folders.Count == 0)
+                {
+                    if (folder_name != "PersonMetadata" &&  // PernsoMetadata folder must be ignored (belongs to a deprecated functionality)
+                       folder.EntryID != defaultInbox.EntryID &&  // ensure that we do not add the inbox, deleted, and spam folders twice
+                       folder.EntryID != defaultDeleted.EntryID &&
+                       folder.EntryID != defaultSpam.EntryID && 
+                       !mailFolders.Contains(folder))
+                    {
+                        mailFolders.Add(folder);
+                    }
+                }
+                else
+                {
+                    foreach (MAPIFolder subFolder in folder.Folders)
+                    {
+                        GetFolders(subFolder);
+                    }
+                }
+            }
+
+            foreach (MAPIFolder folder in Globals.ThisAddIn.Application.GetNamespace("MAPI").Folders)
+            {
+                GetFolders(folder);
+            }
+            return mailFolders.ToArray();
+        }
+
+
+        /** 
+         * Returns a list of tuples containing, for each email to process: the mail EntryID, the folder StoreID, and the folder name.
+        **/
+        private static List<(string, string, string)> GetEmailsToProcess(MAPIFolder[] mailFolders, string[] existingMails)
+        {
+            int k = 0;
+            var mailIDsToProcess = new List<(string, string, string)>();
+
+            try
+            {
+                string inbox_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderInbox)?.EntryID;
+                string deleted_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderDeletedItems)?.EntryID;
+                string junk_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderJunk)?.EntryID;
+                string sent_folder = Globals.ThisAddIn.Application.Session.GetDefaultFolder(OlDefaultFolders.olFolderSentMail)?.EntryID;
+
+                foreach (MAPIFolder folder in mailFolders)
+                {
+                    var mails = folder.Items.OfType<MailItem>();
+                    string folderCategory;
+                    if (folder.EntryID == inbox_folder)
+                    {
+                        folderCategory = "inbox";
+                    } else if (folder.EntryID == deleted_folder)
+                    {
+                        folderCategory = "deleted";
+                    } else if (folder.EntryID == junk_folder)
+                    {
+                        folderCategory = "junk";
+                    } else if (folder.EntryID == sent_folder)
+                    {
+                        folderCategory = "sent";
+                    } else
+                    {
+                        folderCategory = "other";
+                    }
+                    int mails_in_folder_count = 0;
+                    foreach (MailItem mail in mails)
+                    {
+                        try
+                        {
+                            string mail_ID = mail.EntryID;
+                            if (LIMIT_FILENAME_SPACE)
+                            {
+                                mail_ID = mail_ID.TrimStart('0');
+                            }
+                            if (k >= EMAIL_LIMIT)  // Check that we have computed less emails than the limit
+                            {
+                                break;
+                            }
+
+                            if (mail.ReceivedTime >= DATE_LIMIT &&  // Check that the email is recent enough (e.g., of the last 10 years)
+                               !existingMails.Contains(mail_ID))  // Checks that the mail has not already been computed previously
+                            {
+                                mailIDsToProcess.Add(
+                                    (mail.EntryID,
+                                    folder.StoreID,
+                                    folderCategory)
+                                );
+                                k++;
+                                mails_in_folder_count++;
+                            }
+                        } catch (System.Exception e)
+                        {
+                            Logger.Error("Error with an email item - " + e);
+                            break;
+                        }
+                        
+                    }
+                    Logger.Info($"Found {mails_in_folder_count} mails in folder: {folderCategory} - Total mails: {k}" ); // folder.FullFolderPath retains sensitive information, like the email address
+                    //mailItems.AddRange(from MailItem mail in folder.Items select (mail is MailItem ? mail : null, folder.Name));
+                }
+            } catch (System.Runtime.InteropServices.COMException e)
+            {
+                Logger.Error("Error gathering the emails to process: " + e);
+            }
+            
+            return mailIDsToProcess;
         }
 
         private static RawMail ExtractRawDataFromMailItem(MailItem mail, string folder_name)
@@ -483,7 +619,7 @@ namespace PhishingDataCollector
                     Directory.CreateDirectory(outputFolder);
                     return new string[] { };
                 }
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     email_names = Directory.EnumerateFiles(outputFolder)
                     .Select(Path.GetFileName)
@@ -524,7 +660,7 @@ namespace PhishingDataCollector
                     Directory.CreateDirectory(uploadedFolder);
                     return existingEmails;
                 }
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     uploadedEmails = Directory.EnumerateFiles(uploadedFolder)
                     .Select(Path.GetFileName)  // the files don't have the extension ".json"
@@ -559,7 +695,7 @@ namespace PhishingDataCollector
                 foreach (var file in uploadedEmails)
                 {
                     string file_name = file;
-                    if (!SAVE_FILENAME_SPACE)  // if the files have the extension, add it
+                    if (!LIMIT_FILENAME_SPACE)  // if the files have the extension, add it
                     {
                         file_name += ".json";
                     }
@@ -568,7 +704,7 @@ namespace PhishingDataCollector
                     string moveTo = Path.Combine(uploadedFolder, file_name);
                     File.Copy(fileToMove, moveTo);
                     */
-                    File.Create(Path.Combine(uploadedFolder, file_name)).Dispose();  // creates an empty file and closes its stream
+                File.Create(Path.Combine(uploadedFolder, file_name)).Dispose();  // creates an empty file and closes its stream
                 }
 
             }
@@ -598,12 +734,13 @@ namespace PhishingDataCollector
             }
             var options = new JsonSerializerOptions
             {
-                IncludeFields = true
+                IncludeFields = true,
+                NumberHandling = JsonNumberHandling.WriteAsString
             };
             foreach (MailData mail in mails)
             {
                 string file_name;
-                if (SAVE_FILENAME_SPACE)
+                if (LIMIT_FILENAME_SPACE)
                 {
                     file_name = mail.GetID().TrimStart('0');  // removes trailing "0"s and doesn't add the json extension
                 }
@@ -626,6 +763,11 @@ namespace PhishingDataCollector
                     Logger.Error($"SaveMails() - PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
+        }
+
+        public static void SetMultiThreadExecution(bool limit_execution)
+        {
+            ExecuteInMultithread = ! limit_execution;
         }
 
         public static Guid GetClientID()
@@ -654,6 +796,20 @@ namespace PhishingDataCollector
             return clientID;
         }
 
+
+        public static string GetAddinVersion()
+        {
+            if (ApplicationDeployment.IsNetworkDeployed)
+            {
+                ApplicationDeployment applicationDeployment = ApplicationDeployment.CurrentDeployment;
+
+                Version version = applicationDeployment.CurrentVersion;
+
+                return String.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
+            }
+            else return Assembly.GetEntryAssembly()?.GetName().Version.ToString() ?? "unknown";
+        }
+
         private void ConfigureLogger(string log_base_path)
         {
             log4net.Config.XmlConfigurator.Configure();
@@ -664,13 +820,13 @@ namespace PhishingDataCollector
                 {
                     FileAppender fa = (FileAppender)a;
                     // Programmatically set this to the desired location here
-                    string logFileLocation = Path.Combine(log_base_path, "logs", "MailDataCollector.log");
+                    string logFileLocation = Path.Combine(log_base_path, "logs", AppName+".log");
 
                     // Uncomment the lines below if you want to retain the base file name
                     // and change the folder name...
                     //FileInfo fileInfo = new FileInfo(fa.File);
                     //logFileLocation = string.Format(@"C:\MySpecialFolder\{0}", fileInfo.Name);
-
+                    LogFilePath = logFileLocation;
                     fa.File = logFileLocation;
                     fa.ActivateOptions();
                     break;
@@ -681,11 +837,22 @@ namespace PhishingDataCollector
 
         private static void StopAddIn()
         {
+            if (sendLogs == DialogResult.Yes)
+            {
+                SendLogs();
+            }
             InExecution = false;  
             UploadingFiles = false;
-            TaskPaneControl.LaunchPluginBtn.Enabled = true;
+            //TaskPaneControl.LaunchPluginBtn.Enabled = true;
             System.Windows.Forms.Application.DoEvents();
         }
+
+        public static void SendLogs()
+        {
+            //string path = Path.Combine(RootDir, "logs", "test.log");
+            FileUploader.SendLogs(LogFilePath, ENDPOINT_SENDLOGS_URL);
+        }
+
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
         {
@@ -704,7 +871,6 @@ namespace PhishingDataCollector
             Startup += new System.EventHandler(ThisAddIn_Startup);
             Shutdown += new System.EventHandler(ThisAddIn_Shutdown);
         }
-
 
         #endregion
     }

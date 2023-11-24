@@ -1,7 +1,23 @@
-﻿using Dasync.Collections;
+﻿/***
+ *  This file is part of Dataset-Collector.
+
+    Dataset-Collector is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dataset-Collector is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Dataset-Collector.  If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ * ***/
+
 using PhishingDataCollector;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,25 +30,30 @@ public static class FileUploader
 {
     private static HttpClient _httpClient = ThisAddIn.HTTPCLIENT;
     private static string _secretKey = Environment.GetEnvironmentVariable("SECRETKEY_MAIL_COLLECTOR");
-    private static readonly int TIMEOUT = 20000;  // 20 seconds
+    private static readonly int TIMEOUT = 100;  // timeout in seconds per request
+    private static readonly int EMAIL_BATCH_SIZE_UPLOAD = 100;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
 
+    private static int _numSentEmail = 0;
+    public static int NSentEmail
+    {
+        get => _numSentEmail;
+    }
+    
     public static async Task<(bool, string[])> UploadFiles(string url, string[] fileNames, CancellationTokenSource cts, string folderName = ".\\", string fileExt = "")
     {
         //_httpClient = _httpClient ?? new HttpClient();
         _httpClient.CancelPendingRequests();
         
-        Guid g = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
+        Guid boundary = Guid.NewGuid();  // Generate a GUID for the boundary of the multipart/form-data request
         
         // Here we store the emails that have been successfully uploaded
         List<string> uploaded_mails = new List<string>();
 
         // Split the email list in multiple requests of N mails (e.g., 20)
         List<string[]> chunks = new List<string[]>();
-        int chunkSize = 20;  // 20 is the default value for max_file_uploads in Apache (editable in php.ini)
-        int testSize = fileNames.Length;  // TEST ONLY: sets a limit of N mails to send to the endpoint
-        for (int i = 0; i < testSize; i += chunkSize)
+        for (int i = 0; i < fileNames.Length; i += EMAIL_BATCH_SIZE_UPLOAD)
         {
-            int chunkLength = Math.Min(chunkSize, fileNames.Length - i);
+            int chunkLength = Math.Min(EMAIL_BATCH_SIZE_UPLOAD, fileNames.Length - i);
             string[] chunk = new string[chunkLength];
             Array.Copy(fileNames, i, chunk, 0, chunkLength);
             chunks.Add(chunk);
@@ -49,60 +70,100 @@ public static class FileUploader
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);  // Add the authorization token
             _httpClient.DefaultRequestHeaders.Add("ClientID", ThisAddIn.GetClientID().ToString());
-            _httpClient.Timeout = TimeSpan.FromSeconds(10);
-            
+            _httpClient.DefaultRequestHeaders.Add("AddinVersion", ThisAddIn.GetAddinVersion().ToString());
+            _httpClient.Timeout = TimeSpan.FromSeconds(TIMEOUT);
+
+            var tasks = new List<Task<bool>>();
+            int counter = 0;
+            _numSentEmail = 0;
+            foreach (string[] filesChunkPaths in chunks)  // each chunk contains multiple email files to be sent together
+            {
+                /*string filenames_log = "";
+                for(int i=0; i <filesChunkPaths.Length; i++) { 
+                    filenames_log += filesChunkPaths[i];
+                    if (i < filesChunkPaths.Length - 1) { filenames_log += ", "; }
+                }*/
+                //ThisAddIn.Logger.Info("Uploading files: "+ filenames_log);
+                ThisAddIn.Logger.Info("Uploading batch containing files up to " + (filesChunkPaths.Length + (counter * EMAIL_BATCH_SIZE_UPLOAD)) + "/" + fileNames.Length + " files");
+                tasks.Add(SendFileAsync(_httpClient, filesChunkPaths, url, folderName, fileExt, uploaded_mails, boundary));
+                counter++;
+            }
+            var tasksResult = await Task.WhenAll(tasks);
+            for(int i=0; i < tasksResult.Length; i++) 
+            {
+                // If result == true -> OK, result == false -> not OK
+                if (!tasksResult[i]) { 
+                    errors = true;
+                    ThisAddIn.Logger.Error("Error uploading file chunk #" + i);
+                }
+            }
+            /*
             var bag = new ConcurrentBag<object>();
             CancellationTokenSource timeoutSource = new CancellationTokenSource(TIMEOUT);
             await chunks.ParallelForEachAsync(async mailChunk =>
             {
-                // Build the request body
-                using (var formData = new MultipartFormDataContent("----=NextPart_" + g))
-                {
-                    foreach (string fileName in mailChunk)
-                    {
-                        string filePath = Path.Combine(folderName, fileName + fileExt);
-                        var fileContent = new StreamContent(File.OpenRead(filePath));
-                        formData.Add(fileContent, fileName, Path.GetFileName(filePath));
-                    }
-                    try
-                    {
-                        var response = await _httpClient.PostAsync(url, formData, timeoutSource.Token);
-                        bag.Add(response);
-                        ThisAddIn.Logger.Info("Response status code: " + response.StatusCode);
-                        if (response.IsSuccessStatusCode)
-                        {
-                            uploaded_mails.AddRange(mailChunk);  // add the email that have been uploaded correctly
-                        } else
-                        {
-                            errors = true;
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        ThisAddIn.Logger.Error("Error uploading the data to remote server - " + e.Message);
-                        errors = true;
-                    }
-                }
-            }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);
-            //var count = bag.Count;
+                
+            }, maxDegreeOfParallelism: Environment.ProcessorCount / 2);*/
         }
         catch (Exception ex)
         {
-            ThisAddIn.Logger.Error("Error while uploading the files - " + ex.Message);
+            Debug.WriteLine(ex);
+            ThisAddIn.Logger.Error("Error while uploading the files - " + ex);
+            errors = true;
+        }
+        finally
+        {
+            // refresh _httpClient
             try
             {
-                _httpClient.Dispose();
+                _httpClient?.Dispose();
             } // catch (ObjectDisposedException)
             finally
             {
                 _httpClient = new HttpClient();
             }
-            errors = true;
         }
         return (!errors, uploaded_mails.ToArray());
     }
 
-    public static async Task<bool> TestConnection(string url)
+    static async Task<bool> SendFileAsync(HttpClient client, string [] filesToSendPath, string url, string folderName, string fileExt, List<string> uploaded_mails, Guid boundary)
+    {
+        bool errors = false;
+        // Build the request body
+        using (var formData = new MultipartFormDataContent("----=NextPart_" + boundary))
+        {
+            foreach (string fileName in filesToSendPath)
+            {
+                string filePath = Path.Combine(folderName, fileName + fileExt);
+                var fileContent = new StreamContent(File.OpenRead(filePath));
+                formData.Add(fileContent, fileName, Path.GetFileName(filePath));
+            }
+            try
+            {
+                var response = await _httpClient.PostAsync(url, formData);
+                //bag.Add(response);
+                ThisAddIn.Logger.Info("Response status code: " + response.StatusCode);
+                ThisAddIn.Logger.Info("Response message: " + response.Content.ReadAsStringAsync());
+                if (response.IsSuccessStatusCode)
+                {
+                    uploaded_mails.AddRange(filesToSendPath);  // add the email that have been uploaded correctly
+                    _numSentEmail += filesToSendPath.Length;
+                }
+                else
+                {
+                    errors = true;
+                }
+            }
+            catch (Exception e)
+            {
+                ThisAddIn.Logger.Error("Error uploading the data to remote server - " + e);
+                errors = true;
+            }
+            return !errors;
+        }
+    }
+
+        public static async Task<bool> TestConnection(string url)
     {
         // Test the connection to the remote server
         bool result;
@@ -118,10 +179,45 @@ public static class FileUploader
         }
         finally
         {
-            // TODO: this is bad practice, but avoids "System.InvalidOperationException: This instance has already started one or more requests. Properties can only be modified before sending the first request."
+            // FIXME: this is bad practice, but avoids "System.InvalidOperationException: This instance has already started one or more requests. Properties can only be modified before sending the first request."
             _httpClient.Dispose();
             _httpClient = new HttpClient();
         }
         return result;
+    }
+
+    public static async Task SendLogs(string logFilePath, string endPointUrl)
+    {
+        try
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("ClientID", ThisAddIn.GetClientID().ToString());
+                client.DefaultRequestHeaders.Add("AddinVersion", ThisAddIn.GetAddinVersion().ToString());
+
+                var formData = new MultipartFormDataContent();
+
+                var fileStream = new FileStream(logFilePath, FileMode.Open);
+                var fileContent = new StreamContent(fileStream);
+
+                formData.Add(fileContent, "file", "file.log");
+
+                var response = await client.PostAsync(endPointUrl, formData);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    ThisAddIn.Logger.Error("Could not send this log file to remote server at " + endPointUrl + " - Code " + response.StatusCode);
+                }
+                else
+                {
+                    ThisAddIn.Logger.Info("Sent this log file to remote server at " + endPointUrl);
+
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ThisAddIn.Logger.Error("Exception thrown while sending this log file to remote server: " + ex.Message);
+        }
     }
 }

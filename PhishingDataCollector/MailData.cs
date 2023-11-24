@@ -1,4 +1,22 @@
-﻿using System;
+﻿/***
+ *  This file is part of Dataset-Collector.
+
+    Dataset-Collector is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dataset-Collector is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Dataset-Collector.  If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ * ***/
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -74,6 +92,7 @@ namespace PhishingDataCollector
         public List<URLData> MailURLs = new List<URLData>();  // additional information
 
         // Attachments Features
+        public readonly AttachmentData[] MailAttachments;
         public byte n_attachments;
         public byte n_image_attachments;
         public byte n_application_attachments;
@@ -95,7 +114,6 @@ namespace PhishingDataCollector
         private readonly int _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string[] _mailHeaders;
-        private readonly AttachmentData[] _mailAttachments;
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex(@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -119,7 +137,7 @@ namespace PhishingDataCollector
             _HTMLBody = mail.HTMLBody;
             _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
             _emailSender = mail.Sender;
-            _mailAttachments = mail.Attachments;
+            MailAttachments = mail.Attachments;
             _num_recipients = mail.NumRecipients;
             EmailFolderName = mail.Folder;
             UserReadEmail = mail.IsRead;
@@ -138,26 +156,32 @@ namespace PhishingDataCollector
             // -- Subject features
             ComputeSubjectFeatures();
 
-            // -- Body features
-            ComputeBodyFeatures();
-
-            // ---- Body features that involve links
-            ComputeLinkBodyFeatures();  // Side-effect: This also sets MailURLs
-
-            // -- URL features 
-            for (int i=0; i < MailURLs.Count; i++)
+            // -- Body and URLs features
+            if (!string.IsNullOrEmpty(_mailBody))
             {
-                bool urlAlreadyComputed = false;
-                for (int k = i-1; k >= 0; k--)
+                // -- Body Features
+                ComputeBodyFeatures();
+
+                // ---- Body features that involve links
+                ComputeLinkBodyFeatures();  // Side-effect: This also sets MailURLs
+
+                // -- URL features 
+                for (int i = 0; i < MailURLs.Count; i++)
                 {
-                    if (MailURLs[i].GetURL() == MailURLs[k].GetURL()) { 
-                        urlAlreadyComputed = true;
-                        MailURLs[i] = MailURLs[k];
-                        break; 
+                    bool urlAlreadyComputed = false;
+                    for (int k = i - 1; k >= 0; k--)
+                    {
+                        if (MailURLs[i].GetURL() == MailURLs[k].GetURL())
+                        {
+                            urlAlreadyComputed = true;
+                            MailURLs[i] = MailURLs[k];
+                            break;
+                        }
                     }
+                    if (urlAlreadyComputed) { break; }
+                    MailURLs[i]?.ComputeURLFeatures();
                 }
-                if (urlAlreadyComputed) { break; }
-                MailURLs[i]?.ComputeURLFeatures();
+
             }
 
             // -- Attachment features
@@ -165,6 +189,24 @@ namespace PhishingDataCollector
 
             //Debug.WriteLine("Features computed for mail with ID: " + _mailID);
             return;
+        }
+
+        private void ComputeSubjectFeatures()
+        {
+            if (!string.IsNullOrEmpty(_mailSubject))
+            {
+                n_words_subject = Regex.Matches(_mailSubject, @"(\w+)").Count;
+                n_char_subject = _mailSubject.Length;
+                is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
+                if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)3 : (sbyte)2; // 3 = re+fwd, 2 = fwd
+                }
+                else
+                {
+                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)1 : (sbyte)0; // 1 = re, 0 = none
+                }
+            }
         }
 
         private void ComputeBodyFeatures()
@@ -176,7 +218,7 @@ namespace PhishingDataCollector
             //Feature n_images
             n_images = Regex.Matches(_HTMLBody, @"<img", RegexOptions.IgnoreCase).Count;
             //Feature proportion_words_no_vowels
-            proportion_words_no_vowels = Regex.Matches(_mailBody, @"\b([^aeiou\s]+)\b", RegexOptions.IgnoreCase).Count / (float) n_words_body;
+            proportion_words_no_vowels = Regex.Matches(_mailBody, @"\b([^aeiou\s]+)\b", RegexOptions.IgnoreCase).Count / (float)n_words_body;
             //Feature n_href_attr
             n_href_attr = Regex.Matches(_HTMLBody, @"href\s*=", RegexOptions.IgnoreCase).Count;
             //Feature n_table_tag
@@ -184,7 +226,7 @@ namespace PhishingDataCollector
 
             //Feature cap_ratio
             var n_lowercase_chars_body = Regex.Matches(_plainTextBody, "[a-z]").Count;
-            cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / (float) n_lowercase_chars_body : 0;
+            cap_ratio = n_lowercase_chars_body > 0 ? Regex.Matches(_plainTextBody, "[A-Z]").Count / (float)n_lowercase_chars_body : 0;
 
             //Feature n_special_characters_body
             SpecialCharactersBody = BodyFeatures.GetSpecialChars(_plainTextBody).ToArray();
@@ -353,30 +395,6 @@ namespace PhishingDataCollector
             }*/
         }
 
-        private void ComputeSubjectFeatures()
-        {
-            if (!string.IsNullOrEmpty(_mailSubject))
-            {
-                n_words_subject = Regex.Matches(_mailSubject, @"(\w+)").Count;
-                n_char_subject = _mailSubject.Length;
-                is_non_ASCII_subject = Regex.IsMatch(_mailSubject, @"[^\x00-\x7F]");
-                if (Regex.IsMatch(_mailSubject, @"fwd:", RegexOptions.IgnoreCase))
-                {
-                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)3 : (sbyte)2; // 3 = re+fwd, 2 = fwd
-                }
-                else
-                {
-                    is_re_fwd_subject = Regex.IsMatch(_mailSubject, @"re:", RegexOptions.IgnoreCase) ? (sbyte)1 : (sbyte)0; // 1 = re, 0 = none
-                }
-            }
-            else
-            {
-                n_words_subject = 0;
-                n_char_subject = 0;
-                is_non_ASCII_subject = false;
-                is_re_fwd_subject = 0;
-            }
-        }
 
         private void ComputeHeaderFeatures()
         {
@@ -456,7 +474,7 @@ namespace PhishingDataCollector
 
         private void ComputeAttachmentsFeatures()
         {
-            n_attachments = (byte)_mailAttachments.Count();
+            n_attachments = (byte)MailAttachments.Count();
             n_image_attachments = 0;
             n_application_attachments = 0;
             n_message_attachments = 0;
@@ -470,7 +488,7 @@ namespace PhishingDataCollector
             int i = 0;
             if (n_attachments > 0)
             {
-                foreach (AttachmentData att in _mailAttachments)
+                foreach (AttachmentData att in MailAttachments)
                 {
                     // VirusTotalScan link_scan = new VirusTotalScan(att.SHA256, isAttachment: true);  Not computed realtime 
                     // VirusTotal_API.PerformAPICall(link_scan);  Not computed realtime 
