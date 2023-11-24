@@ -46,7 +46,9 @@ namespace PhishingDataCollector
         public static HttpClient HTTPCLIENT = new HttpClient(); // (httpHandler);
         public static int EMAIL_LIMIT = 10000;
         public static DateTime DATE_LIMIT = new DateTime(2013, 1, 1);  // Year limit for collection is 2013
+
         public static readonly string ENDPOINT_BASE_URL = "http://212.189.202.20/email-collector-endpoint/public"; //"http://127.0.0.1:8000"; // "https://giuseppe-desolda.ddns.net/email-collector-endpoint/public"; // ;
+
         public static string POS_PATH;
 
         private static bool InExecution = false;
@@ -69,8 +71,11 @@ namespace PhishingDataCollector
         private static string RootDir;
         private static string LogFilePath;
         public static Guid ClientID;
+
         public static NameSpace MapiNs;  // the namespace of the mapi
         private static DialogResult sendLogs;
+
+        public static string ENDPOINT_BASE_URL; 
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -90,6 +95,7 @@ namespace PhishingDataCollector
             Environment.SetEnvironmentVariable("OUTPUT_FOLDER", Path.Combine(RootDir, "out"));
             Environment.SetEnvironmentVariable("TEMP_FOLDER", Path.Combine(RootDir, "out", ".tmp"));
             ClientID = GetClientID();
+
             Logger.Info("Plugin started - Client ID : " + ClientID.ToString());
             MapiNs = Globals.ThisAddIn.Application.GetNamespace("MAPI");
 
@@ -105,6 +111,8 @@ namespace PhishingDataCollector
                 //if (File.Exists(python_zip_path)) File.Delete(python_zip_path);  // delete the archive to free up space
             }
 
+            ENDPOINT_BASE_URL = Environment.GetEnvironmentVariable("ENDPOINT_BASE_URL");
+            
             //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
             //ExecuteAddIn();
