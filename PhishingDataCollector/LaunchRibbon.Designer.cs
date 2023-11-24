@@ -41,15 +41,19 @@
             this.AboutBtn = this.Factory.CreateRibbonButton();
             this.options = this.Factory.CreateRibbonGroup();
             this.LimitResourcesCheckbox = this.Factory.CreateRibbonCheckBox();
+            this.group2 = this.Factory.CreateRibbonGroup();
+            this.SendLogs = this.Factory.CreateRibbonButton();
             this.tab1.SuspendLayout();
             this.group1.SuspendLayout();
             this.options.SuspendLayout();
+            this.group2.SuspendLayout();
             this.SuspendLayout();
             // 
             // tab1
             // 
             this.tab1.Groups.Add(this.group1);
             this.tab1.Groups.Add(this.options);
+            this.tab1.Groups.Add(this.group2);
             this.tab1.Label = "Dataset Collector";
             this.tab1.Name = "tab1";
             // 
@@ -101,6 +105,24 @@
     "mitata)";
             this.LimitResourcesCheckbox.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.LimitResourcesCheckbox_Click);
             // 
+            // group2
+            // 
+            this.group2.Items.Add(this.SendLogs);
+            this.group2.Label = "Altro";
+            this.group2.Name = "group2";
+            this.group2.Visible = false;
+            // 
+            // SendLogs
+            // 
+            this.SendLogs.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.SendLogs.Label = "Manda Dati di Diagnostica";
+            this.SendLogs.Name = "SendLogs";
+            this.SendLogs.ShowImage = true;
+            this.SendLogs.SuperTip = "Manda dati anonimi di diagnostica ai nostri server per migliorare il funzionament" +
+    "o del programma";
+            this.SendLogs.Visible = false;
+            this.SendLogs.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button2_Click);
+            // 
             // LaunchRibbon
             // 
             this.Name = "LaunchRibbon";
@@ -113,6 +135,8 @@
             this.group1.PerformLayout();
             this.options.ResumeLayout(false);
             this.options.PerformLayout();
+            this.group2.ResumeLayout(false);
+            this.group2.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -126,6 +150,8 @@
         internal Microsoft.Office.Tools.Ribbon.RibbonButton AboutBtn;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup options;
         internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox LimitResourcesCheckbox;
+        internal Microsoft.Office.Tools.Ribbon.RibbonGroup group2;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton SendLogs;
     }
 
     partial class ThisRibbonCollection

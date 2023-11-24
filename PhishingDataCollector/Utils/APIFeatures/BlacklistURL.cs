@@ -54,7 +54,7 @@ public static class BlacklistURL_API
 
     public static void PerformAPICall(BlacklistURL bl)
     {
-        string requestURL = _api_request_url + "check/" + bl.NBlacklistsDetected;
+        string requestURL = _api_request_url + "check/" + bl.NBlacklistsDetected;  //TODO does this work??
         try
         {
             HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(requestURL);

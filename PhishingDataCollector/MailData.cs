@@ -1,4 +1,22 @@
-﻿using System;
+﻿/***
+ *  This file is part of Dataset-Collector.
+
+    Dataset-Collector is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Dataset-Collector is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Dataset-Collector.  If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ * ***/
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -74,6 +92,7 @@ namespace PhishingDataCollector
         public List<URLData> MailURLs = new List<URLData>();  // additional information
 
         // Attachments Features
+        public readonly AttachmentData[] MailAttachments;
         public byte n_attachments;
         public byte n_image_attachments;
         public byte n_application_attachments;
@@ -95,7 +114,6 @@ namespace PhishingDataCollector
         private readonly int _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
         private readonly string[] _mailHeaders;
-        private readonly AttachmentData[] _mailAttachments;
 
         // Utility regexes
         private Regex _ip_address_regex = new Regex(@"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}");
@@ -119,7 +137,7 @@ namespace PhishingDataCollector
             _HTMLBody = mail.HTMLBody;
             _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
             _emailSender = mail.Sender;
-            _mailAttachments = mail.Attachments;
+            MailAttachments = mail.Attachments;
             _num_recipients = mail.NumRecipients;
             EmailFolderName = mail.Folder;
             UserReadEmail = mail.IsRead;
@@ -456,7 +474,7 @@ namespace PhishingDataCollector
 
         private void ComputeAttachmentsFeatures()
         {
-            n_attachments = (byte)_mailAttachments.Count();
+            n_attachments = (byte)MailAttachments.Count();
             n_image_attachments = 0;
             n_application_attachments = 0;
             n_message_attachments = 0;
@@ -470,7 +488,7 @@ namespace PhishingDataCollector
             int i = 0;
             if (n_attachments > 0)
             {
-                foreach (AttachmentData att in _mailAttachments)
+                foreach (AttachmentData att in MailAttachments)
                 {
                     // VirusTotalScan link_scan = new VirusTotalScan(att.SHA256, isAttachment: true);  Not computed realtime 
                     // VirusTotal_API.PerformAPICall(link_scan);  Not computed realtime 
