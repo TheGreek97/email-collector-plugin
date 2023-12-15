@@ -186,7 +186,7 @@ public static class FileUploader
         return result;
     }
 
-    public static async Task SendLogs(string logFilePath, string endPointUrl)
+    public static async Task<bool> SendLogs(string logFilePath, string endPointUrl)
     {
         try
         {
@@ -207,17 +207,19 @@ public static class FileUploader
                 if (!response.IsSuccessStatusCode)
                 {
                     ThisAddIn.Logger.Error("Could not send this log file to remote server at " + endPointUrl + " - Code " + response.StatusCode);
+                    return false;
                 }
                 else
                 {
                     ThisAddIn.Logger.Info("Sent this log file to remote server at " + endPointUrl);
-
+                    return true;
                 }
             }
         }
         catch (Exception ex)
         {
             ThisAddIn.Logger.Error("Exception thrown while sending this log file to remote server: " + ex.Message);
+            return false;
         }
     }
 }

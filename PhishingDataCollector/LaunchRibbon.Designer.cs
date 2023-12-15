@@ -40,9 +40,11 @@
             this.StateBtn = this.Factory.CreateRibbonButton();
             this.AboutBtn = this.Factory.CreateRibbonButton();
             this.options = this.Factory.CreateRibbonGroup();
+            this.editBox1 = this.Factory.CreateRibbonEditBox();
             this.LimitResourcesCheckbox = this.Factory.CreateRibbonCheckBox();
             this.group2 = this.Factory.CreateRibbonGroup();
-            this.SendLogs = this.Factory.CreateRibbonButton();
+            this.button2 = this.Factory.CreateRibbonButton();
+            this.button1 = this.Factory.CreateRibbonButton();
             this.tab1.SuspendLayout();
             this.group1.SuspendLayout();
             this.options.SuspendLayout();
@@ -92,9 +94,21 @@
             // 
             // options
             // 
+            this.options.Items.Add(this.editBox1);
             this.options.Items.Add(this.LimitResourcesCheckbox);
             this.options.Label = "Opzioni";
             this.options.Name = "options";
+            // 
+            // editBox1
+            // 
+            this.editBox1.Label = "Max. email da processare";
+            this.editBox1.MaxLength = 5;
+            this.editBox1.Name = "editBox1";
+            this.editBox1.SuperTip = "Imposta il numero di email massimo da processare in un\'esecuzione del plugin (def" +
+    "ault=10000). Se riscontri problemi o il processo impiega troppo tempo, modifica " +
+    "questo valore con uno più basso";
+            this.editBox1.Text = null;
+            this.editBox1.TextChanged += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.editBox1_TextChanged);
             // 
             // LimitResourcesCheckbox
             // 
@@ -107,21 +121,30 @@
             // 
             // group2
             // 
-            this.group2.Items.Add(this.SendLogs);
+            this.group2.Items.Add(this.button1);
+            this.group2.Items.Add(this.button2);
             this.group2.Label = "Altro";
             this.group2.Name = "group2";
-            this.group2.Visible = false;
             // 
-            // SendLogs
+            // button2
             // 
-            this.SendLogs.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
-            this.SendLogs.Label = "Manda Dati di Diagnostica";
-            this.SendLogs.Name = "SendLogs";
-            this.SendLogs.ShowImage = true;
-            this.SendLogs.SuperTip = "Manda dati anonimi di diagnostica ai nostri server per migliorare il funzionament" +
+            this.button2.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.button2.Label = "Manda Dati di Diagnostica";
+            this.button2.Name = "button2";
+            this.button2.ShowImage = true;
+            this.button2.SuperTip = "Manda dati anonimi di diagnostica ai nostri server per migliorare il funzionament" +
     "o del programma";
-            this.SendLogs.Visible = false;
-            this.SendLogs.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button2_Click);
+            this.button2.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button2_Click);
+            // 
+            // button1
+            // 
+            this.button1.Image = global::PhishingDataCollector.Properties.Resources.uniba_logo;
+            this.button1.Label = "Manda email processate in precedenza";
+            this.button1.Name = "button1";
+            this.button1.ScreenTip = "Se hai già lanciato l\'addin in precedenza, ma la trasmissione non è stata complet" +
+    "ata, usa questo tasto per mandare velocemente le mail già elaborate";
+            this.button1.ShowImage = true;
+            this.button1.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.button1_Click);
             // 
             // LaunchRibbon
             // 
@@ -151,7 +174,9 @@
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup options;
         internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox LimitResourcesCheckbox;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup group2;
-        internal Microsoft.Office.Tools.Ribbon.RibbonButton SendLogs;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton button2;
+        internal Microsoft.Office.Tools.Ribbon.RibbonEditBox editBox1;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton button1;
     }
 
     partial class ThisRibbonCollection

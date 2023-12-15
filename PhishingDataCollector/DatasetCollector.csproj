@@ -36,7 +36,7 @@
     <PublishUrl>C:\Users\franc\source\repos\email-collector-plugin\dataset_collector_outlook-latest-ita\</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.1.1.9</ApplicationVersion>
+    <ApplicationVersion>1.1.1.10</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>1</UpdateInterval>
