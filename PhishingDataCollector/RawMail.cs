@@ -51,7 +51,7 @@ namespace PhishingDataCollector
             Attachments = attachments;
             IsRead = read;
             Folder = folderName;
-            Date = datetime.Date;
+            Date = datetime;
         }
     }
 }

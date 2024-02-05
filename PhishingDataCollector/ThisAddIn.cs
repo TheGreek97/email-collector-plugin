@@ -63,17 +63,17 @@ namespace PhishingDataCollector
 
         // Variables initialized in the ThisAddIn_Startup function:
         public static string ENDPOINT_BASE_URL;
+        public static ILog Logger;
+        public static Guid ClientID;
+        public static NameSpace MapiNs;  // the namespace of the mapi
         private static string ENDPOINT_TEST_URL;
         private static string ENDPOINT_UPLOAD_URL;
         private static string ENDPOINT_SENDLOGS_URL;
-        public static ILog Logger;
         private static string RootDir;
         private static string LogFilePath;
-        public static Guid ClientID;
-
-        public static NameSpace MapiNs;  // the namespace of the mapi
         private static DialogResult sendLogs;
 
+        public static Dictionary<string, string> HashesFromMailID = new Dictionary<string, string>();
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -109,14 +109,14 @@ namespace PhishingDataCollector
                 //if (File.Exists(python_zip_path)) File.Delete(python_zip_path);  // delete the archive to free up space
             }
 
-        ENDPOINT_BASE_URL = Environment.GetEnvironmentVariable("ENDPOINT_BASE_URL");
-        ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
-        ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
-        ENDPOINT_SENDLOGS_URL = ENDPOINT_BASE_URL + "/api/logs";
-        //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
-        //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
-        //ExecuteAddIn();
-    }
+            ENDPOINT_BASE_URL = Environment.GetEnvironmentVariable("ENDPOINT_BASE_URL");
+            ENDPOINT_TEST_URL = ENDPOINT_BASE_URL + "/api/test";
+            ENDPOINT_UPLOAD_URL = ENDPOINT_BASE_URL + "/api/mail";
+            ENDPOINT_SENDLOGS_URL = ENDPOINT_BASE_URL + "/api/logs";
+            //var config = new ConfigurationBuilder().AddEnvironmentVariables().Build();
+            //ServicePointManager.ServerCertificateValidationCallback += (s, cert, chain, sslPolicyErrors) => true;
+            //ExecuteAddIn();
+        }
         public static void ShowClientID()
         {
             Clipboard.SetText(ClientID.ToString());
@@ -284,8 +284,9 @@ namespace PhishingDataCollector
                                 {
                                     MailList.Add(data);
                                     SaveMail(data);
-                                    Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
+                                    SaveHashInDictionary(data.EmailHash, data.GetID());
                                     MailProgress++;
+                                    Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
                                     return MailProgress;
                                 });
                             }
@@ -317,6 +318,7 @@ namespace PhishingDataCollector
                                 data.ComputeFeatures();
                                 MailList.Add(data);
                                 SaveMail(data);
+                                SaveHashInDictionary(data.EmailHash, data.GetID());
                                 MailProgress++;
                                 Logger.Info($"Processed mail with ID: {data.GetID()}; {N_Mails_To_Process - MailProgress} remaining.");
                             }
@@ -433,9 +435,9 @@ namespace PhishingDataCollector
 
             List<MAPIFolder> mailFolders = new List<MAPIFolder>
             {
-                defaultInbox,  
-                defaultDeleted,
-                defaultSpam 
+                //defaultInbox,  
+                //defaultDeleted,
+                //defaultSpam 
             };  // add the "inbox", "deleted" and "spam" folders by default
 
 
@@ -443,7 +445,7 @@ namespace PhishingDataCollector
             void GetFolders(MAPIFolder folder)
             {
                 var folder_name = folder.FullFolderPath.Split('\\').LastOrDefault();
-                if (folder.Folders.Count == 0)
+                if (folder.Folders.Count <= 0)
                 {
                     if (folder_name != "PersonMetadata" &&  // PernsoMetadata folder must be ignored (belongs to a deprecated functionality)
                        folder.EntryID != defaultInbox.EntryID &&  // ensure that we do not add the inbox, deleted, and spam folders twice
@@ -465,6 +467,7 @@ namespace PhishingDataCollector
 
             foreach (MAPIFolder folder in Globals.ThisAddIn.Application.GetNamespace("MAPI").Folders)
             {
+                if (folder.FullFolderPath == "\\\\francesco.greco1697@gmail.com")
                 GetFolders(folder);
             }
             return mailFolders.ToArray();
@@ -774,6 +777,15 @@ namespace PhishingDataCollector
                     Logger.Error($"SaveMails() - PathTooLongException: trying to write on a path with {file_name.Length} chars ({file_name}).");
                 }
             }
+        }
+
+        private static void SaveHashInDictionary (string hash, string mailID)
+        {
+            if (LIMIT_FILENAME_SPACE)
+            {
+                mailID = mailID.TrimStart('0');
+            }
+            HashesFromMailID[mailID] = hash;
         }
 
         public static void SetMultiThreadExecution(bool limit_execution)

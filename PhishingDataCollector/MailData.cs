@@ -16,10 +16,12 @@
  * 
  * ***/
 
+using PhishingDataCollector.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace PhishingDataCollector
@@ -110,6 +112,7 @@ namespace PhishingDataCollector
         //public byte vt_a_protected;
 
         /* Private Fields */
+        public string EmailHash;  // this is the result of hashing "{from_address} {subject} {date_timestamp}"
         private string ID => _mailID;
         private readonly int _num_recipients;
         private readonly string _mailID, _mailSubject, _mailBody, _HTMLBody, _emailSender, _plainTextBody;
@@ -128,23 +131,27 @@ namespace PhishingDataCollector
 
         public MailData(RawMail mail)
         {
-            // Set private fields
+            // Set initial fields
             _mailID = mail.EntryID;
-            mail_size = mail.Size;
             _mailHeaders = mail.Headers;
             _mailSubject = mail.Subject;
             _mailBody = mail.Body;
             _HTMLBody = mail.HTMLBody;
             _plainTextBody = BodyFeatures.GetPlainTextFromHtml(_mailBody);
-            _emailSender = mail.Sender;
-            MailAttachments = mail.Attachments;
             _num_recipients = mail.NumRecipients;
+            _emailSender = mail.Sender;
+            EmailHash = ComputeHash(mail);
+            mail_size = mail.Size;
+            MailAttachments = mail.Attachments;
             EmailFolderName = mail.Folder;
             UserReadEmail = mail.IsRead;
             EmailDate = mail.Date;
         }
 
-        public string GetID() { return _mailID; }
+        public string GetID() {
+            //return _emailHash;
+            return _mailID; 
+        }
         public void ComputeFeatures()
         {
             // Compute the email features
@@ -191,6 +198,24 @@ namespace PhishingDataCollector
             return;
         }
 
+        private string ComputeHash(RawMail mail)
+        {
+            var date = TimeStamp.ConvertToUnixTimestamp(mail.Date.AddSeconds(-mail.Date.Second));  // Strip the seconds from the date and convert it to timestamp
+            var dataToHash = mail.Sender + " " + date;
+            dataToHash = dataToHash.ToLower();
+            using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+            {
+                byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(dataToHash);
+                byte[] hashBytes = md5.ComputeHash(inputBytes);
+
+                StringBuilder sb = new System.Text.StringBuilder();
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("X2"));
+                }
+                return sb.ToString().ToLower();
+            }
+        }
         private void ComputeSubjectFeatures()
         {
             if (!string.IsNullOrEmpty(_mailSubject))

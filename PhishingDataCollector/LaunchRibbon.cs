@@ -58,8 +58,8 @@ namespace PhishingDataCollector
                 {
                     ThisAddIn.Logger.Error("New limit of email to process set to " + new_value);
                     ThisAddIn.EMAIL_LIMIT = new_value;
-                    MessageBox.Show($"Il limite massimo di email da processare è stato impostato a {new_value}. Cliccare sul tasto {LaunchPluginBtn.Label} per iniziare il processo di esportazione.", "Nuovo limite impostato!",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    /*MessageBox.Show($"Il limite massimo di email da processare è stato impostato a {new_value}. Cliccare sul tasto {LaunchPluginBtn.Label} per iniziare il processo di esportazione.", "Nuovo limite impostato!",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);*/
                 } else
                 {
                     MessageBox.Show("Inserisci un numero valido tra 1 e " + MAX_EMAILS, "Errore", 

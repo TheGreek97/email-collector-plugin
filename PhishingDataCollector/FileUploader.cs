@@ -23,6 +23,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -135,8 +137,21 @@ public static class FileUploader
             foreach (string fileName in filesToSendPath)
             {
                 string filePath = Path.Combine(folderName, fileName + fileExt);
+                // Use Hash instead of MAILID
+                string file_hash;
+                try {
+                    using (StreamReader r = new StreamReader(filePath))
+                    {
+                        string json = r.ReadToEnd();
+                        file_hash = System.Text.RegularExpressions.Regex.Match(json, @"""EmailHash""\s*:\s*""(.*)""").Groups[1].Value;
+                    }
+                } catch (Exception ex)
+                {
+                    file_hash = fileName;
+                    Debug.WriteLine(ex);
+                }
                 var fileContent = new StreamContent(File.OpenRead(filePath));
-                formData.Add(fileContent, fileName, Path.GetFileName(filePath));
+                formData.Add(fileContent, file_hash, Path.GetFileName(filePath));
             }
             try
             {
