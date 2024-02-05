@@ -151,7 +151,7 @@ public static class FileUploader
                     Debug.WriteLine(ex);
                 }
                 var fileContent = new StreamContent(File.OpenRead(filePath));
-                formData.Add(fileContent, file_hash, Path.GetFileName(filePath));
+                formData.Add(fileContent, file_hash, file_hash);
             }
             try
             {
